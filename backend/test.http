@@ -1,0 +1,10 @@
+### GET Endpoint for getting the users
+GET http://localhost:5000/api/users
+
+### POST Endpoint for creating the user
+POST http://localhost:5000/api/users
+Content-Type: application/json
+
+{
+  "name": "Alex"
+}
