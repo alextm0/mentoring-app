@@ -235,167 +235,162 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>()(
-  persist(
-    (set) => ({
-      // Initial state
-      currentUser: null,
-      isAuthenticated: false,
-      userRole: null,
-      mentees: mockMentees,
-      mentors: mockMentors,
-      assignments: mockAssignments,
-      resources: mockResources,
-      sessions: mockSessions,
+  (set) => ({
+    // Initial state
+    currentUser: null,
+    isAuthenticated: false,
+    userRole: null,
+    mentees: mockMentees,
+    mentors: mockMentors,
+    assignments: mockAssignments,
+    resources: mockResources,
+    sessions: mockSessions,
 
-      // Actions
-      login: (email, password) => {
-        // For demo purposes, we'll just check if the email exists in our mock data
-        const mentor = mockMentors.find((m) => m.email === email)
-        if (mentor) {
-          set({
-            currentUser: mentor,
-            isAuthenticated: true,
-            userRole: "mentor",
-          })
-          return
-        }
-
-        const mentee = mockMentees.find((m) => m.email === email)
-        if (mentee) {
-          set({
-            currentUser: mentee,
-            isAuthenticated: true,
-            userRole: "mentee",
-          })
-          return
-        }
-
-        // If we get here, no user was found
-        alert("Invalid credentials")
-      },
-
-      logout: () => {
+    // Actions
+    login: (email, password) => {
+      // For demo purposes, we'll just check if the email exists in our mock data
+      const mentor = mockMentors.find((m) => m.email === email)
+      if (mentor) {
         set({
-          currentUser: null,
-          isAuthenticated: false,
-          userRole: null,
+          currentUser: mentor,
+          isAuthenticated: true,
+          userRole: "mentor",
         })
-      },
+        return
+      }
 
-      addMentee: (mentee) => {
-        const newMentee: Mentee = {
-          ...mentee,
-          id: Math.random().toString(36).substring(2, 9),
-          createdAt: new Date(),
-        }
-
-        set((state) => ({
-          mentees: [...state.mentees, newMentee],
-          // Also update the mentor's mentees list if the current user is a mentor
-          mentors: state.mentors.map((mentor) =>
-            mentor.id === mentee.mentorId ? { ...mentor, mentees: [...mentor.mentees, newMentee] } : mentor,
-          ),
-        }))
-      },
-
-      updateMentee: (id, menteeData) => {
-        set((state) => {
-          // Update in mentees array
-          const updatedMentees = state.mentees.map((mentee) =>
-            mentee.id === id ? { ...mentee, ...menteeData } : mentee
-          )
-          
-          // Update in mentor's mentees list if needed
-          const updatedMentors = state.mentors.map((mentor) => {
-            const menteeIndex = mentor.mentees.findIndex((m) => m.id === id)
-            if (menteeIndex >= 0) {
-              const updatedMenteesList = [...mentor.mentees]
-              updatedMenteesList[menteeIndex] = {
-                ...updatedMenteesList[menteeIndex],
-                ...menteeData,
-              }
-              return { ...mentor, mentees: updatedMenteesList }
-            }
-            return mentor
-          })
-          
-          return {
-            mentees: updatedMentees,
-            mentors: updatedMentors,
-          }
+      const mentee = mockMentees.find((m) => m.email === email)
+      if (mentee) {
+        set({
+          currentUser: mentee,
+          isAuthenticated: true,
+          userRole: "mentee",
         })
-      },
-      
-      deleteMentee: (id) => {
-        set((state) => {
-          // Remove from mentees array
-          const filteredMentees = state.mentees.filter((mentee) => mentee.id !== id)
-          
-          // Remove from mentor's mentees list
-          const updatedMentors = state.mentors.map((mentor) => ({
-            ...mentor,
-            mentees: mentor.mentees.filter((mentee) => mentee.id !== id),
-          }))
-          
-          return {
-            mentees: filteredMentees,
-            mentors: updatedMentors,
-          }
-        })
-      },
+        return
+      }
 
-      addAssignment: (assignment) => {
-        const newAssignment: Assignment = {
-          ...assignment,
-          id: Math.random().toString(36).substring(2, 9),
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        }
-
-        set((state) => ({
-          assignments: [...state.assignments, newAssignment],
-        }))
-      },
-
-      updateAssignmentStatus: (id, status, progress) => {
-        set((state) => ({
-          assignments: state.assignments.map((assignment) =>
-            assignment.id === id ? { ...assignment, status, progress, updatedAt: new Date() } : assignment,
-          ),
-        }))
-      },
-
-      addResource: (resource) => {
-        const newResource: Resource = {
-          ...resource,
-          id: Math.random().toString(36).substring(2, 9),
-          createdAt: new Date(),
-        }
-
-        set((state) => ({
-          resources: [...state.resources, newResource],
-        }))
-      },
-
-      addSession: (session) => {
-        const newSession: Session = {
-          ...session,
-          id: Math.random().toString(36).substring(2, 9),
-        }
-
-        set((state) => ({
-          sessions: [...state.sessions, newSession],
-        }))
-      },
-
-      updateSession: (id, sessionUpdate) => {
-        set((state) => ({
-          sessions: state.sessions.map((session) => (session.id === id ? { ...session, ...sessionUpdate } : session)),
-        }))
-      },
-    }),
-    {
-      name: "mentoring-app-storage",
+      // If we get here, no user was found
+      alert("Invalid credentials")
     },
-  ),
+
+    logout: () => {
+      set({
+        currentUser: null,
+        isAuthenticated: false,
+        userRole: null,
+      })
+    },
+
+    addMentee: (mentee) => {
+      const newMentee: Mentee = {
+        ...mentee,
+        id: Math.random().toString(36).substring(2, 9),
+        createdAt: new Date(),
+      }
+
+      set((state) => ({
+        mentees: [...state.mentees, newMentee],
+        // Also update the mentor's mentees list if the current user is a mentor
+        mentors: state.mentors.map((mentor) =>
+          mentor.id === mentee.mentorId ? { ...mentor, mentees: [...mentor.mentees, newMentee] } : mentor,
+        ),
+      }))
+    },
+
+    updateMentee: (id, menteeData) => {
+      set((state) => {
+        // Update in mentees array
+        const updatedMentees = state.mentees.map((mentee) =>
+          mentee.id === id ? { ...mentee, ...menteeData } : mentee
+        )
+        
+        // Update in mentor's mentees list if needed
+        const updatedMentors = state.mentors.map((mentor) => {
+          const menteeIndex = mentor.mentees.findIndex((m) => m.id === id)
+          if (menteeIndex >= 0) {
+            const updatedMenteesList = [...mentor.mentees]
+            updatedMenteesList[menteeIndex] = {
+              ...updatedMenteesList[menteeIndex],
+              ...menteeData,
+            }
+            return { ...mentor, mentees: updatedMenteesList }
+          }
+          return mentor
+        })
+        
+        return {
+          mentees: updatedMentees,
+          mentors: updatedMentors,
+        }
+      })
+    },
+    
+    deleteMentee: (id) => {
+      set((state) => {
+        // Remove from mentees array
+        const filteredMentees = state.mentees.filter((mentee) => mentee.id !== id)
+        
+        // Remove from mentor's mentees list
+        const updatedMentors = state.mentors.map((mentor) => ({
+          ...mentor,
+          mentees: mentor.mentees.filter((mentee) => mentee.id !== id),
+        }))
+        
+        return {
+          mentees: filteredMentees,
+          mentors: updatedMentors,
+        }
+      })
+    },
+
+    addAssignment: (assignment) => {
+      const newAssignment: Assignment = {
+        ...assignment,
+        id: Math.random().toString(36).substring(2, 9),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+
+      set((state) => ({
+        assignments: [...state.assignments, newAssignment],
+      }))
+    },
+
+    updateAssignmentStatus: (id, status, progress) => {
+      set((state) => ({
+        assignments: state.assignments.map((assignment) =>
+          assignment.id === id ? { ...assignment, status, progress, updatedAt: new Date() } : assignment,
+        ),
+      }))
+    },
+
+    addResource: (resource) => {
+      const newResource: Resource = {
+        ...resource,
+        id: Math.random().toString(36).substring(2, 9),
+        createdAt: new Date(),
+      }
+
+      set((state) => ({
+        resources: [...state.resources, newResource],
+      }))
+    },
+
+    addSession: (session) => {
+      const newSession: Session = {
+        ...session,
+        id: Math.random().toString(36).substring(2, 9),
+      }
+
+      set((state) => ({
+        sessions: [...state.sessions, newSession],
+      }))
+    },
+
+    updateSession: (id, sessionUpdate) => {
+      set((state) => ({
+        sessions: state.sessions.map((session) => (session.id === id ? { ...session, ...sessionUpdate } : session)),
+      }))
+    },
+  }),
 )

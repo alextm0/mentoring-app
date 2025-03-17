@@ -79,6 +79,9 @@ export function MenteeTable() {
   const handleDeleteMentee = (mentee: Mentee) => {
     setMenteeToDelete(mentee)
     setIsDeleteConfirmOpen(true)
+    // array.forEach(element => {
+    //   setIsDeleteConfirmOpen(true)
+    // });
   }
 
   const confirmDelete = () => {
