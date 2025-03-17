@@ -1,10 +1,23 @@
 "use client"
 
-import { CalendarIcon } from "lucide-react"
+import { useState } from "react"
+import { AlertTriangle, CalendarIcon } from "lucide-react"
 import { useAppStore } from "@/lib/store"
+import { Button } from "../ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 export function UpcomingSessionsList() {
-  const { sessions, currentUser, userRole, mentees } = useAppStore()
+  const { sessions, currentUser, userRole, mentees, deleteSession } = useAppStore()
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false)
+  const [sessionToDelete, setSessionToDelete] = useState<string | null>(null)
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Filter sessions based on user role
   const filteredSessions = sessions.filter((session) => {
@@ -41,6 +54,25 @@ export function UpcomingSessionsList() {
     return mentee ? mentee.name : "Unknown Mentee"
   }
 
+  const handleDeleteSession = (sessionId: string) => {
+    setSessionToDelete(sessionId)
+    setIsDeleteConfirmOpen(true)
+  }
+
+  const confirmDelete = () => {
+    if (!sessionToDelete) return
+    
+    setIsSubmitting(true)
+    deleteSession(sessionToDelete)
+    
+    // Simulate API call
+    setTimeout(() => {
+      setIsSubmitting(false)
+      setIsDeleteConfirmOpen(false)
+      setSessionToDelete(null)
+    }, 1000)
+  }
+
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">Your scheduled mentoring sessions for the next 7 days</p>
@@ -55,16 +87,60 @@ export function UpcomingSessionsList() {
               {userRole === "mentor" && (
                 <div className="text-sm text-muted-foreground">with {getMenteeName(session.menteeId)}</div>
               )}
-              <div className="flex items-center text-sm text-muted-foreground">
-                <CalendarIcon className="mr-1 h-3 w-3" />
-                {session.startTime} - {session.endTime}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center text-sm text-muted-foreground">
+                  <CalendarIcon className="mr-1 h-3 w-3" />
+                  {session.startTime} - {session.endTime}
+                </div>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => handleDeleteSession(session.id)}
+                >
+                  Delete
+                </Button>
               </div>
             </div>
           ))
         ) : (
-          <div className="text-center text-muted-foreground py-4">No upcoming sessions scheduled</div>
+          <div className="text-center text-sm text-muted-foreground">
+            No upcoming sessions scheduled
+          </div>
         )}
       </div>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center text-destructive">
+              <AlertTriangle className="mr-2 h-5 w-5" />
+              Delete Session
+            </DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete this session? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setIsDeleteConfirmOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Deleting..." : "Delete Session"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

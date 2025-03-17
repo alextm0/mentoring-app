@@ -232,6 +232,7 @@ interface AppState {
   addResource: (resource: Omit<Resource, "id" | "createdAt">) => void
   addSession: (session: Omit<Session, "id">) => void
   updateSession: (id: string, session: Partial<Session>) => void
+  deleteSession: (id: string) => void
 }
 
 export const useAppStore = create<AppState>()(
@@ -390,6 +391,12 @@ export const useAppStore = create<AppState>()(
     updateSession: (id, sessionUpdate) => {
       set((state) => ({
         sessions: state.sessions.map((session) => (session.id === id ? { ...session, ...sessionUpdate } : session)),
+      }))
+    },
+
+    deleteSession: (id) => {
+      set((state) => ({
+        sessions: state.sessions.filter((session) => session.id !== id)
       }))
     },
   }),

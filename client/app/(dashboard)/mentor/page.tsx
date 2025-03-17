@@ -62,7 +62,6 @@ export default function MentorDashboardPage() {
       <Tabs defaultValue="all-mentees" className="space-y-4">
         <TabsList>
           <TabsTrigger value="all-mentees">All Mentees</TabsTrigger>
-          <TabsTrigger value="mentors">Mentors</TabsTrigger>
           <TabsTrigger value="schedule">Schedule</TabsTrigger>
           <TabsTrigger value="recent-activity">Recent Activity</TabsTrigger>
         </TabsList>
