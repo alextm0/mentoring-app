@@ -2,72 +2,173 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { BookOpenIcon, CalendarIcon, HomeIcon, LogOutIcon, PlusIcon, UsersIcon } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet"
+import { MenuIcon, LogOut } from "lucide-react"
 import { useAppStore } from "@/lib/store"
-import { ThemeToggle } from "@/components/ui/theme-toggle"
+
+const navigation = [
+  {
+    name: "Dashboard",
+    href: "/mentor",
+    icon: "LayoutDashboard",
+  },
+  {
+    name: "Schedule",
+    href: "/mentor/schedule",
+    icon: "Calendar",
+  },
+  {
+    name: "Mentees",
+    href: "/mentor/mentees",
+    icon: "Users",
+  },
+  {
+    name: "Assignments",
+    href: "/mentor/assignments",
+    icon: "ClipboardList",
+  },
+  {
+    name: "Resources",
+    href: "/mentor/resources",
+    icon: "BookOpen",
+  },
+  {
+    name: "Settings",
+    href: "/mentor/settings",
+    icon: "Settings",
+  },
+]
 
 export function Sidebar() {
   const pathname = usePathname()
-  const { userRole, logout } = useAppStore()
+  const { isAuthenticated, userRole, currentUser, logout } = useAppStore()
 
-  const isMentor = userRole === "mentor"
-  const basePath = isMentor ? "/mentor" : "/mentee"
-
-  const mentorLinks = [
-    { href: "/mentor", label: "Dashboard", icon: HomeIcon },
-    { href: "/mentor/mentees", label: "Mentees", icon: UsersIcon },
-    { href: "/mentor/assignments", label: "Assignments", icon: BookOpenIcon },
-    { href: "/mentor/schedule", label: "Schedule", icon: CalendarIcon },
-    { href: "/mentor/resources", label: "Resources", icon: BookOpenIcon },
-  ]
-
-  const menteeLinks = [
-    { href: "/mentee", label: "Dashboard", icon: HomeIcon },
-    { href: "/mentee/assignments", label: "Assignments", icon: BookOpenIcon },
-    { href: "/mentee/resources", label: "Resources", icon: BookOpenIcon },
-    { href: "/mentee/schedule", label: "Schedule", icon: CalendarIcon },
-  ]
-
-  const links = isMentor ? mentorLinks : menteeLinks
+  // If not authenticated or not a mentor, don't show the sidebar
+  if (!isAuthenticated || userRole !== "mentor") {
+    return null
+  }
 
   return (
-    <div className="hidden border-r bg-background h-screen w-64 flex-col md:flex">
-      <div className="flex h-14 items-center border-b px-4">
-        <Link href={basePath} className="flex items-center gap-2 font-semibold">
-          <BookOpenIcon className="h-6 w-6" />
-          <span>CodeWiki</span>
-        </Link>
-        <div className="ml-auto">
-          <ThemeToggle />
+    <>
+      {/* Mobile Sidebar */}
+      <Sheet>
+        <SheetTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="md:hidden fixed top-4 left-4 z-50"
+          >
+            <MenuIcon className="h-6 w-6" />
+            <span className="sr-only">Toggle sidebar</span>
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="left" className="w-[240px] p-0 bg-background">
+          <div className="flex h-full flex-col">
+            <div className="flex h-14 items-center border-b px-4">
+              <span className="font-semibold">Mentor Portal</span>
+            </div>
+            <ScrollArea className="flex-1">
+              <nav className="space-y-1 p-2">
+                {navigation.map((item) => {
+                  const Icon = require("lucide-react")[item.icon]
+                  return (
+                    <Link
+                      key={item.name}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                        pathname === item.href
+                          ? "bg-primary text-primary-foreground"
+                          : "hover:bg-accent hover:text-accent-foreground"
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {item.name}
+                    </Link>
+                  )
+                })}
+              </nav>
+            </ScrollArea>
+            <div className="border-t p-4">
+              <div className="flex items-center gap-3">
+                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-sm font-medium">
+                    {currentUser?.name?.[0]?.toUpperCase()}
+                  </span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate">{currentUser?.name}</p>
+                  <p className="text-xs text-muted-foreground truncate">{currentUser?.email}</p>
+                </div>
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={logout}
+                  className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                >
+                  <LogOut className="h-4 w-4" />
+                  <span className="sr-only">Logout</span>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      {/* Desktop Sidebar */}
+      <div className="hidden md:flex md:w-[240px] md:flex-col md:fixed md:inset-y-0 md:border-r bg-background">
+        <div className="flex h-14 items-center border-b px-4">
+          <span className="font-semibold">Mentor Portal</span>
+        </div>
+        <ScrollArea className="flex-1">
+          <nav className="space-y-1 p-2">
+            {navigation.map((item) => {
+              const Icon = require("lucide-react")[item.icon]
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  className={cn(
+                    "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                    pathname === item.href
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  <Icon className="h-4 w-4" />
+                  {item.name}
+                </Link>
+              )
+            })}
+          </nav>
+        </ScrollArea>
+        <div className="border-t p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <span className="text-sm font-medium">
+                {currentUser?.name?.[0]?.toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{currentUser?.name}</p>
+              <p className="text-xs text-muted-foreground truncate">{currentUser?.email}</p>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={logout}
+              className="h-8 w-8 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="h-4 w-4" />
+              <span className="sr-only">Logout</span>
+            </Button>
+          </div>
         </div>
       </div>
-      <div className="flex-1 overflow-auto py-2">
-        <nav className="grid items-start px-2 text-sm">
-          {links.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className={cn(
-                "flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary",
-                pathname === link.href && "bg-muted font-medium text-primary",
-              )}
-            >
-              <link.icon className="h-4 w-4" />
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-      <div className="mt-auto p-4">
-        <Button variant="outline" className="w-full" onClick={logout}>
-          <LogOutIcon className="mr-2 h-4 w-4" />
-          Logout
-        </Button>
-      </div>
-    </div>
+    </>
   )
 }
 

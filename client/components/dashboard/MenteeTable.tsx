@@ -33,15 +33,27 @@ import {
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import type { Mentee } from "@/lib/types"
+import { Progress } from "@/components/ui/progress"
+import { cn } from "@/lib/utils"
 
-export function MenteeTable() {
-  const { mentees, assignments, sessions, deleteMentee } = useAppStore()
+interface MenteeTableProps {
+  mentees: Mentee[]
+  filters: {
+    searchQuery: string
+    categoryFilter: string
+    progressFilter: string
+    assignmentFilter: string
+  }
+  onFilterChange: {
+    search: (value: string) => void
+    category: (value: string) => void
+    progress: (value: string) => void
+    assignment: (value: string) => void
+  }
+}
 
-  // Filtering
-  const [searchQuery, setSearchQuery] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<string>("all")
-  const [progressFilter, setProgressFilter] = useState<string>("all")
-  const [assignmentFilter, setAssignmentFilter] = useState<string>("all")
+export function MenteeTable({ mentees, filters, onFilterChange }: MenteeTableProps) {
+  const { assignments, sessions, deleteMentee } = useAppStore()
 
   const [selectedMentee, setSelectedMentee] = useState<Mentee | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -50,21 +62,18 @@ export function MenteeTable() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Get unique categories from all mentees
-  const uniqueCategories = Array.from(new Set(mentees.flatMap(m => m.categories)))
+  const uniqueCategories = Array.from(new Set(mentees?.flatMap(m => m.categories)))
 
   // Enhance mentees with additional data
   const enhancedMentees = mentees.map((mentee) => {
-    // Find the next session for this mentee
     const nextSession = sessions.find(
       (s) => s.menteeId === mentee.id && s.status === "scheduled" && new Date(s.date) > new Date()
     )
 
-    // Count pending assignments
     const pendingAssignments = assignments.filter(
       (a) => a.menteeId === mentee.id && a.status !== "completed" && a.status !== "reviewed"
     ).length
 
-    // Format next session date
     const nextSessionDate = nextSession
       ? new Date(nextSession.date).toLocaleDateString("en-US", { month: "short", day: "numeric" })
       : "No sessions"
@@ -74,39 +83,6 @@ export function MenteeTable() {
       nextSession: nextSessionDate,
       pendingAssignments,
     }
-  })
-
-  // Apply all filters
-  const filteredMentees = enhancedMentees.filter((mentee) => {
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase()
-      const matchesSearch = 
-        mentee.name.toLowerCase().includes(query) ||
-        mentee.email.toLowerCase().includes(query) ||
-        mentee.categories.some(category => category.toLowerCase().includes(query))
-      if (!matchesSearch) return false
-    }
-
-    // Category filter
-    if (categoryFilter !== "all" && !mentee.categories.includes(categoryFilter)) {
-      return false
-    }
-
-    // Progress filter
-    if (progressFilter !== "all") {
-      if (progressFilter === "high" && mentee.progress < 70) return false
-      if (progressFilter === "medium" && (mentee.progress < 40 || mentee.progress >= 70)) return false
-      if (progressFilter === "low" && mentee.progress >= 40) return false
-    }
-
-    // Assignment filter
-    if (assignmentFilter !== "all") {
-      if (assignmentFilter === "none" && mentee.pendingAssignments > 0) return false
-      if (assignmentFilter === "pending" && mentee.pendingAssignments === 0) return false
-    }
-
-    return true
   })
 
   const handleEditMentee = (mentee: Mentee) => {
@@ -126,7 +102,6 @@ export function MenteeTable() {
     
     deleteMentee(menteeToDelete.id)
     
-    // Simulate API call
     setTimeout(() => {
       setIsSubmitting(false)
       setIsDeleteConfirmOpen(false)
@@ -148,12 +123,12 @@ export function MenteeTable() {
             type="search"
             placeholder="Search mentees by name, email or category..."
             className="pl-8"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            value={filters.searchQuery}
+            onChange={(e) => onFilterChange.search(e.target.value)}
           />
         </div>
         <div className="flex flex-wrap gap-2">
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+          <Select value={filters.categoryFilter} onValueChange={onFilterChange.category}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
@@ -165,7 +140,7 @@ export function MenteeTable() {
             </SelectContent>
           </Select>
 
-          <Select value={progressFilter} onValueChange={setProgressFilter}>
+          <Select value={filters.progressFilter} onValueChange={onFilterChange.progress}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Progress" />
             </SelectTrigger>
@@ -177,7 +152,7 @@ export function MenteeTable() {
             </SelectContent>
           </Select>
 
-          <Select value={assignmentFilter} onValueChange={setAssignmentFilter}>
+          <Select value={filters.assignmentFilter} onValueChange={onFilterChange.assignment}>
             <SelectTrigger className="w-[160px]">
               <SelectValue placeholder="Assignments" />
             </SelectTrigger>
@@ -191,35 +166,35 @@ export function MenteeTable() {
       </div>
 
       {/* Active filters */}
-      {(categoryFilter !== "all" || progressFilter !== "all" || assignmentFilter !== "all") && (
+      {(filters.categoryFilter !== "all" || filters.progressFilter !== "all" || filters.assignmentFilter !== "all") && (
         <div className="flex flex-wrap gap-2">
-          {categoryFilter !== "all" && (
+          {filters.categoryFilter !== "all" && (
             <Badge variant="secondary" className="gap-1">
-              Category: {categoryFilter}
+              Category: {filters.categoryFilter}
               <button 
-                onClick={() => setCategoryFilter("all")}
+                onClick={() => onFilterChange.category("all")}
                 className="ml-1 rounded-full hover:bg-muted"
               >
                 ×
               </button>
             </Badge>
           )}
-          {progressFilter !== "all" && (
+          {filters.progressFilter !== "all" && (
             <Badge variant="secondary" className="gap-1">
-              Progress: {progressFilter}
+              Progress: {filters.progressFilter}
               <button 
-                onClick={() => setProgressFilter("all")}
+                onClick={() => onFilterChange.progress("all")}
                 className="ml-1 rounded-full hover:bg-muted"
               >
                 ×
               </button>
             </Badge>
           )}
-          {assignmentFilter !== "all" && (
+          {filters.assignmentFilter !== "all" && (
             <Badge variant="secondary" className="gap-1">
-              Assignments: {assignmentFilter}
+              Assignments: {filters.assignmentFilter}
               <button 
-                onClick={() => setAssignmentFilter("all")}
+                onClick={() => onFilterChange.assignment("all")}
                 className="ml-1 rounded-full hover:bg-muted"
               >
                 ×
@@ -230,9 +205,9 @@ export function MenteeTable() {
             variant="ghost" 
             size="sm" 
             onClick={() => {
-              setCategoryFilter("all")
-              setProgressFilter("all")
-              setAssignmentFilter("all")
+              onFilterChange.category("all")
+              onFilterChange.progress("all")
+              onFilterChange.assignment("all")
             }}
           >
             Clear all
@@ -254,8 +229,8 @@ export function MenteeTable() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredMentees.length > 0 ? (
-              filteredMentees.map((mentee) => (
+            {enhancedMentees.length > 0 ? (
+              enhancedMentees.map((mentee) => (
                 <TableRow key={mentee.id}>
                   <TableCell>
                     <div className="flex items-center gap-3">
@@ -269,23 +244,104 @@ export function MenteeTable() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>{mentee.categories[0]}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
-                      <div className="h-2 w-16 rounded-full bg-muted">
-                        <div
-                          className={`h-full rounded-full ${
-                            mentee.progress >= 70 ? "bg-green-500" : mentee.progress >= 40 ? "bg-yellow-500" : "bg-red-500"
-                          }`}
-                          style={{ width: `${mentee.progress}%` }}
-                        />
-                      </div>
-                      <span className="text-xs">{mentee.progress}%</span>
+                      <Badge variant="outline">{mentee.categories[0]}</Badge>
+                      {mentee.categories.length > 1 && (
+                        <Badge variant="secondary" className="text-xs">+{mentee.categories.length - 1}</Badge>
+                      )}
                     </div>
                   </TableCell>
-                  <TableCell>{mentee.nextSession}</TableCell>
-                  <TableCell>{mentee.pendingAssignments} assignments</TableCell>
-                  <TableCell>{new Date(mentee.createdAt).toLocaleDateString()}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <Progress 
+                        value={mentee.progress} 
+                        className={cn(
+                          "w-[100px]",
+                          mentee.progress >= 80 ? "bg-green-100" : 
+                          mentee.progress >= 60 ? "bg-yellow-100" : 
+                          "bg-red-100"
+                        )} 
+                      />
+                      <Badge 
+                        variant={mentee.progress >= 80 ? "secondary" : 
+                          mentee.progress >= 60 ? "outline" : 
+                          "destructive"}
+                        className="text-xs"
+                      >
+                        {mentee.progress}%
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {mentee.nextSession === "No sessions" ? (
+                        <Badge variant="secondary" className="text-xs">No sessions</Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs">
+                          {mentee.nextSession}
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      {mentee.pendingAssignments > 0 ? (
+                        <div className="group relative">
+                          <Badge 
+                            variant={mentee.pendingAssignments > 1 ? "destructive" : "outline"} 
+                            className={cn(
+                              "cursor-pointer transition-all hover:scale-105",
+                              mentee.pendingAssignments > 1 
+                                ? "bg-red-50 text-red-700 hover:bg-red-100 dark:bg-red-950 dark:text-red-400 dark:hover:bg-red-900" 
+                                : "bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-400 dark:hover:bg-orange-900"
+                            )}
+                          >
+                            <div className="flex items-center gap-1.5">
+                              <div className={cn(
+                                "h-2 w-2 rounded-full",
+                                mentee.pendingAssignments > 1 
+                                  ? "bg-red-500 dark:bg-red-400" 
+                                  : "bg-orange-500 dark:bg-orange-400"
+                              )} />
+                              {mentee.pendingAssignments} pending
+                            </div>
+                          </Badge>
+                          <div className="absolute -top-2 left-1/2 z-50 mt-8 hidden min-w-[200px] -translate-x-1/2 transform rounded-md bg-white p-3 shadow-lg group-hover:block dark:bg-gray-800">
+                            <div className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                              Pending Assignments
+                            </div>
+                            <div className="mt-2 space-y-1.5">
+                              {assignments
+                                .filter(a => a.menteeId === mentee.id && (a.status === "not-started" || a.status === "in-progress"))
+                                .map(assignment => (
+                                <div key={assignment.id} className="text-xs text-gray-600 dark:text-gray-400">
+                                  • {assignment.title}
+                                  <span className="ml-1 text-xs text-gray-400">
+                                    (Due: {new Date(assignment.dueDate).toLocaleDateString()})
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <Badge variant="secondary" className="cursor-default bg-gray-50 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                          <div className="flex items-center gap-1.5">
+                            <div className="h-2 w-2 rounded-full bg-green-500 dark:bg-green-400" />
+                            All caught up
+                          </div>
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-muted-foreground">
+                        {new Date(mentee.createdAt).toLocaleDateString()}
+                      </span>
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -320,7 +376,7 @@ export function MenteeTable() {
             ) : (
               <TableRow>
                 <TableCell colSpan={7} className="h-24 text-center">
-                  No mentees found matching "{searchQuery}"
+                  No mentees found matching filters
                 </TableCell>
               </TableRow>
             )}
