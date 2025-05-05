@@ -9,6 +9,9 @@ import {
   ChevronRightIcon,
   PlusIcon
 } from "lucide-react"
+import ProtectedRoute from '@/components/auth/ProtectedRoute'
+import api from '@/lib/api'
+import { Spinner } from '@/components/ui/spinner'
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
@@ -30,9 +33,19 @@ import { SessionHeatmap } from "@/components/dashboard/SessionHeatmap"
 
 const PAGE_SIZES = [5, 10, 20, 50]
 
-export default function MentorDashboardPage() {
+interface Assignment {
+  id: string;
+  title: string;
+  description: string;
+  created_at: string;
+}
+
+export default function MentorDashboard() {
   const router = useRouter()
-  const { isAuthenticated, userRole, currentUser, mentees, assignments } = useAppStore()
+  const { isAuthenticated, userRole, currentUser, mentees } = useAppStore()
+  const [assignments, setAssignments] = useState<Assignment[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
   // ──────────────────────────────────────────────────────────────────────────
   // 1) Auth Guard
@@ -170,174 +183,49 @@ export default function MentorDashboardPage() {
   // ──────────────────────────────────────────────────────────────────────────
   // 6) Render
   // ──────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const fetchAssignments = async () => {
+      try {
+        const data = await api.get('/assignments')
+        setAssignments(data)
+      } catch (err: any) {
+        setError(err.message)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    fetchAssignments()
+  }, [])
+
   return (
-    <div className="flex flex-col gap-6 p-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Mentor Dashboard</h1>
-          <p className="text-muted-foreground">Welcome back, {currentUser?.name}</p>
-        </div>
-
-        <div className="flex gap-2">
-          <Button variant="outline" asChild>
-            <Link href="/mentor/schedule">
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              Schedule Session
-            </Link>
-          </Button>
-
-          <Button asChild>
-            <Link href="/mentor/mentees/new">
-              <PlusIcon className="mr-2 h-4 w-4" />
-              Add New Mentee
-            </Link>
-          </Button>
-        </div>
-      </div>
-
-      {/* Dashboard Metrics */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <DashboardMetrics />
-      </div>
-
-      {/* Tabs */}
-      <Tabs defaultValue="all-mentees" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="all-mentees">All Mentees</TabsTrigger>
-          <TabsTrigger value="schedule">Schedule</TabsTrigger>
-          <TabsTrigger value="recent-activity">Recent Activity</TabsTrigger>
-        </TabsList>
-
-        {/* All Mentees Tab */}
-        <TabsContent value="all-mentees" className="space-y-4">
-          {/* Pagination & Page Size Controls */}
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-muted-foreground">
-              {filteredMentees.length > 0 ? (
-                <>
-                  Showing {startIndex + 1}-
-                  {Math.min(endIndex, filteredMentees.length)} of{" "}
-                  {filteredMentees.length} mentees
-                </>
-              ) : (
-                <>No mentees found</>
-              )}
-            </p>
-
-            <div className="flex items-center gap-2">
-              <Select
-                value={pageSize.toString()}
-                onValueChange={handlePageSizeChange}
+    <ProtectedRoute roles={['MENTOR']}>
+      <div className="container mx-auto py-8">
+        <h1 className="text-2xl font-bold mb-6">Mentor Dashboard</h1>
+        
+        {isLoading ? (
+          <div className="flex justify-center">
+            <Spinner size="lg" />
+          </div>
+        ) : error ? (
+          <div className="text-red-500">{error}</div>
+        ) : (
+          <div className="grid gap-4">
+            {assignments.map((assignment) => (
+              <div
+                key={assignment.id}
+                className="p-4 border rounded-lg shadow-sm"
               >
-                <SelectTrigger className="w-[120px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {PAGE_SIZES.map(size => (
-                    <SelectItem key={size} value={size.toString()}>
-                      {size} per page
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={prevPage}
-                  disabled={currentPage === 1}
-                >
-                  <ChevronLeftIcon className="h-4 w-4" />
-                </Button>
-                <span className="text-sm min-w-[80px] text-center">
-                  Page {currentPage} of {totalPages}
-                </span>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={nextPage}
-                  disabled={currentPage === totalPages}
-                >
-                  <ChevronRightIcon className="h-4 w-4" />
-                </Button>
+                <h2 className="text-xl font-semibold">{assignment.title}</h2>
+                <p className="text-gray-600 mt-2">{assignment.description}</p>
+                <div className="text-sm text-gray-500 mt-2">
+                  Created: {new Date(assignment.created_at).toLocaleDateString()}
+                </div>
               </div>
-            </div>
+            ))}
           </div>
-
-          {/* Mentee Table */}
-          {filteredMentees.length > 0 ? (
-            <MenteeTable
-              mentees={currentMentees}
-              filters={{
-                searchQuery,
-                categoryFilter,
-                progressFilter,
-                assignmentFilter
-              }}
-              onFilterChange={handleFilterChange}
-            />
-          ) : (
-            <Card>
-              <CardHeader>
-                <CardTitle>No Mentees</CardTitle>
-                <CardDescription>
-                  Try adjusting your filters or adding a new mentee.
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          )}
-        </TabsContent>
-
-        {/* Schedule Tab */}
-        <TabsContent value="schedule" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Session Activity Heatmap</CardTitle>
-              <CardDescription>
-                View session distribution across days and times
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SessionHeatmap />
-            </CardContent>
-          </Card>
-
-          <div className="grid gap-4 md:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle>Upcoming Sessions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <UpcomingSessionsList />
-                <Button variant="outline" className="mt-4 w-full" asChild>
-                  <Link href="/mentor/schedule">
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    See calendar
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Schedule New Session</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ScheduleSessionForm />
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Recent Activity Tab (Not implemented in your snippet) */}
-        <TabsContent value="recent-activity" className="space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Recent activity functionality goes here...
-          </p>
-        </TabsContent>
-      </Tabs>
-    </div>
+        )}
+      </div>
+    </ProtectedRoute>
   )
 }

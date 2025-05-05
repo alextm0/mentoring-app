@@ -1,0 +1,116 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Folder & Module Layout
+server/
+├─ .env.example
+├─ Dockerfile
+├─ jest.config.js
+├─ package.json
+├─ src/
+│  ├─ server.js          # entry → loads env, connects DB, mounts Express
+│  ├─ app.js             # creates Express instance, global middleware
+│  ├─ routes/
+│  │  ├─ index.js        # version router ⇒ /api/v1/*
+│  │  ├─ auth.routes.js
+│  │  ├─ users.routes.js
+│  │  ├─ mentors.routes.js
+│  │  ├─ assignments.routes.js
+│  │  ├─ resources.routes.js
+│  │  ├─ submissions.routes.js
+│  │  └─ comments.routes.js
+│  ├─ controllers/
+│  │  ├─ auth.controller.js
+│  │  ├─ users.controller.js
+│  │  ├─ mentors.controller.js
+│  │  ├─ assignments.controller.js
+│  │  ├─ resources.controller.js
+│  │  ├─ submissions.controller.js
+│  │  └─ comments.controller.js
+│  ├─ services/
+│  │  ├─ auth.service.js
+│  │  ├─ users.service.js
+│  │  ├─ mentors.service.js
+│  │  ├─ assignments.service.js
+│  │  ├─ resources.service.js
+│  │  ├─ submissions.service.js
+│  │  └─ comments.service.js
+│  ├─ repos/             # thin Drizzle wrappers (DB‑only, no business logic)
+│  │  ├─ db.js           # Neon pool + Drizzle init
+│  │  ├─ schema/         # generated SQL + hand‑written migrations
+│  │  ├─ users.repo.js
+│  │  ├─ assignments.repo.js
+│  │  └─ ...
+│  ├─ middleware/
+│  │  ├─ auth.js         # JWT verify + req.user populate
+│  │  ├─ rbac.js         # role check helper (mentor | mentee | admin)
+│  │  ├─ error.js        # central error handler
+│  │  └─ validation.js   # celebrate / joi schemas (optional)
+│  ├─ utils/
+│  │  ├─ logger.js       # pino‑pretty or winston
+│  │  └─ pagination.js
+│  └─ tests/
+│     ├─ auth.test.js
+│     ├─ mentors.test.js
+│     └─ ...
+└─ README.md
+
+# Minimal Database Schema (Drizzle)
+-- users
+id            uuid  pk
+email         text  unique not null
+password_hash text  not null
+role          text  check (role in ('MENTOR','MENTEE')) not null
+created_at    timestamptz default now()
+
+-- mentees table not needed; role flag + mentor_id FKey covers it
+ALTER TABLE users ADD COLUMN mentor_id uuid references users(id);
+
+-- assignments
+id            uuid  pk
+mentor_id     uuid  references users(id)
+title         text  not null
+description   text
+created_at    timestamptz default now()
+
+-- resources (stand‑alone or linked to assignment)
+id            uuid  pk
+mentor_id     uuid references users(id)
+assignment_id uuid references assignments(id) null
+title         text  not null
+url           text  not null
+created_at    timestamptz default now()
+
+-- submissions (code snippets)
+id            uuid  pk
+assignment_id uuid references assignments(id)
+mentee_id     uuid references users(id)
+snippet       text  not null
+completed     boolean default false
+created_at    timestamptz default now()
+
+-- inline comments
+id            uuid  pk
+submission_id uuid references submissions(id)
+mentor_id     uuid references users(id)
+line_number   integer
+comment       text not null
+created_at    timestamptz default now()
+
+
+# Auth Flow (JWT, no refresh for MVP)
+Simple JWT for the MVP that handles role-based authentication (mentor, mentee)
+
+middleware/auth.js
+
+Extract Authorization: Bearer <token>; jwt.verify.
+
+Attach req.user = { id, role }.
+
+middleware/rbac.js(roles: string[])
+
+if (!roles.includes(req.user.role)) return res.status(403)….
+
+
