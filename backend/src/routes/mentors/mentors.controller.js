@@ -1,11 +1,36 @@
 const { eq, and } = require('drizzle-orm');
-const db = require('../repos/db');
-const { users } = require('../repos/schema/schema');
+const db = require('../../repos/db');
+const { users } = require('../../repos/schema/schema');
 const { z } = require('zod');
 
 const menteeIdSchema = z.object({
   menteeId: z.string().uuid()
 });
+
+async function getMe(req, res) {
+  try {
+    const [user] = await db
+      .select({
+        id: users.id,
+        email: users.email,
+        role: users.role,
+        mentor_id: users.mentor_id,
+        created_at: users.created_at
+      })
+      .from(users)
+      .where(eq(users.id, req.user.id))
+      .limit(1);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Get me error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+}
 
 async function attachMentee(req, res) {
   try {
@@ -137,6 +162,7 @@ async function detachMentee(req, res) {
 }
 
 module.exports = {
+  getMe,
   attachMentee,
   getMentees,
   detachMentee

@@ -6,9 +6,9 @@ const {
   getResourceById,
   updateResource,
   deleteResource
-} = require('../controllers/resources.controller');
-const auth = require('../middleware/auth');
-const checkRole = require('../middleware/rbac');
+} = require('../resources/resources.controller');
+const auth = require('../../middleware/auth');
+const checkRole = require('../../middleware/rbac');
 
 const router = express.Router();
 

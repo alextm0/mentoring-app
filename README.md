@@ -26,7 +26,6 @@ A full-stack mentoring platform built with Next.js, Express.js, and PostgreSQL t
 - TypeScript
 - Tailwind CSS
 - Shadcn UI Components
-- React Query for data fetching
 - JWT for authentication
 
 ### Backend

@@ -1,6 +1,6 @@
 const { eq, and } = require('drizzle-orm');
-const db = require('../repos/db');
-const { assignments, users } = require('../repos/schema/schema');
+const db = require('../../repos/db');
+const { assignments, users } = require('../../repos/schema/schema');
 const { z } = require('zod');
 
 const assignmentSchema = z.object({

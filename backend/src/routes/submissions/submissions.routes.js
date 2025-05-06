@@ -5,9 +5,9 @@ const {
   getMenteeSubmissions, 
   getAssignmentSubmissions, 
   toggleCompleted 
-} = require('../controllers/submissions.controller');
-const auth = require('../middleware/auth');
-const rbac = require('../middleware/rbac');
+} = require('../submissions/submissions.controller');
+const auth = require('../../middleware/auth');
+const rbac = require('../../middleware/rbac');
 
 // POST /api/v1/submissions - Create a new submission (mentees only)
 router.post('/',

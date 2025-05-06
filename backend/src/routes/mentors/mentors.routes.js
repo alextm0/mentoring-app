@@ -1,8 +1,8 @@
 const express = require('express');
-const { attachMentee, getMentees, detachMentee } = require('../controllers/mentors.controller');
-const auth = require('../middleware/auth');
-const checkRole = require('../middleware/rbac');
-const checkOwnership = require('../middleware/ownership');
+const { attachMentee, getMentees, detachMentee } = require('../mentors/mentors.controller');
+const auth = require('../../middleware/auth');
+const checkRole = require('../../middleware/rbac');
+const checkOwnership = require('../../middleware/ownership');
 
 const router = express.Router();
 

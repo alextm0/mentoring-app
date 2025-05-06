@@ -1,8 +1,8 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const { eq } = require('drizzle-orm');
-const db = require('../repos/db');
-const { users } = require('../repos/schema/schema');
+const db = require('../../repos/db');
+const { users } = require('../../repos/schema/schema');
 const { z } = require('zod');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'test-secret';

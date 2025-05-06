@@ -1,7 +1,7 @@
 const { eq, and } = require('drizzle-orm');
 const { z } = require('zod');
-const db = require('../repos/db');
-const { submissions, assignments } = require('../repos/schema/schema');
+const db = require('../../repos/db');
+const { submissions, assignments } = require('../../repos/schema/schema');
 
 const submissionSchema = z.object({
   assignment_id: z.string().uuid(),

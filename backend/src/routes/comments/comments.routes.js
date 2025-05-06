@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const { createComment, getSubmissionComments } = require('../controllers/comments.controller');
-const auth = require('../middleware/auth');
-const rbac = require('../middleware/rbac');
+const { createComment, getSubmissionComments } = require('../comments/comments.controller');
+const auth = require('../../middleware/auth');
+const rbac = require('../../middleware/rbac');
 
 // POST /api/v1/comments - Create a new comment (mentors only)
 router.post('/', 

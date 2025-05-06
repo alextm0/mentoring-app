@@ -1,6 +1,6 @@
 const { eq, and, isNull, or } = require('drizzle-orm');
-const db = require('../repos/db');
-const { resources, users, assignments } = require('../repos/schema/schema');
+const db = require('../../repos/db');
+const { resources, users, assignments } = require('../../repos/schema/schema');
 const { z } = require('zod');
 
 const resourceSchema = z.object({

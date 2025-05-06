@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
 
-const authRoutes = require('./auth.routes');
-const usersRoutes = require('./users.routes');
-const mentorsRoutes = require('./mentors.routes');
-const assignmentsRoutes = require('./assignments.routes');
-const resourcesRoutes = require('./resources.routes');
-const submissionsRoutes = require('./submissions.routes');
-const commentsRoutes = require('./comments.routes');
+const authRoutes = require('./auth/auth.routes');
+const usersRoutes = require('./users/users.routes');
+const mentorsRoutes = require('./mentors/mentors.routes');
+const assignmentsRoutes = require('./assignments/assignments.routes');
+const resourcesRoutes = require('./resources/resources.routes');
+const submissionsRoutes = require('./submissions/submissions.routes');
+const commentsRoutes = require('./comments/comments.routes');
 
 // API version prefix
 const API_PREFIX = '/api/v1';

@@ -1,7 +1,7 @@
 const { eq } = require('drizzle-orm');
 const { z } = require('zod');
-const db = require('../repos/db');
-const { comments, submissions, assignments } = require('../repos/schema/schema');
+const db = require('../../repos/db');
+const { comments, submissions, assignments } = require('../../repos/schema/schema');
 
 // Validation schemas
 const createCommentSchema = z.object({

@@ -5,9 +5,9 @@ const {
   getMenteeAssignments,
   updateAssignment,
   deleteAssignment
-} = require('../controllers/assignments.controller');
-const auth = require('../middleware/auth');
-const checkRole = require('../middleware/rbac');
+} = require('../assignments/assignments.controller');
+const auth = require('../../middleware/auth');
+const checkRole = require('../../middleware/rbac');
 
 const router = express.Router();
 
