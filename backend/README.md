@@ -147,7 +147,7 @@ backend/
 1. **Clone & install**  
    ```bash
    git clone <repo-url> mentorship-app
-   cd mentorship-app
+   cd mentorship-app/backend
    npm install
    ```
 
