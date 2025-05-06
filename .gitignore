@@ -2,6 +2,9 @@
 client/node_modules/
 backend/node_modules/
 
+# Remove node_modules from the root directory
+node_modules/
+
 # Build outputs
 client/.next/
 client/out/

@@ -1,8 +1,8 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const { eq } = require('drizzle-orm');
-const db = require('../repos/db');
-const { users } = require('../repos/schema/schema');
+const db = require('../config/database');
+const { users } = require('../models');
 
 async function createTestUser(email, role, mentor_id = null) {
   // Check if user already exists

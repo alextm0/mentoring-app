@@ -1,105 +1,85 @@
-const { eq } = require('drizzle-orm');
 const { z } = require('zod');
-const db = require('../../repos/db');
-const { comments, submissions, assignments } = require('../../repos/schema/schema');
+const {
+  commentsRepo,
+  submissionsRepo,
+  assignmentsRepo,          // ← pull in assignments to check mentor‑ownership
+} = require('../../repos');
+const logger = require('../../utils/logger');
 
-// Validation schemas
 const createCommentSchema = z.object({
   submission_id: z.string().uuid(),
-  line_number: z.number().int().positive(),
-  comment: z.string().min(1)
+  line_number:   z.number().int().positive(),
+  comment:       z.string().min(1),
 });
 
-async function createComment(req, res) {
+async function createComment(req, res, next) {
   try {
-    const result = createCommentSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ error: 'Invalid input', details: result.error.issues });
-    }
+    const v = createCommentSchema.parse(req.body);
 
-    const { submission_id, line_number, comment } = result.data;
-
-    // Verify submission exists and mentor has access
-    const [submission] = await db
-      .select({
-        id: submissions.id,
-        assignment: {
-          mentor_id: assignments.mentor_id
-        }
-      })
-      .from(submissions)
-      .leftJoin(assignments, eq(submissions.assignment_id, assignments.id))
-      .where(eq(submissions.id, submission_id))
-      .limit(1);
-
+    // 1️⃣ make sure the submission exists
+    const submission = await submissionsRepo.findById(v.submission_id);
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return next({ status: 404, message: 'Submission not found' });
     }
 
-    // Only the mentor of the assignment can comment
-    if (submission.assignment.mentor_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to comment on this submission' });
+    // 2️⃣ load the assignment to verify the mentor
+    const assignment = await assignmentsRepo.findById(submission.assignment_id);
+    if (!assignment) {
+      return next({ status: 404, message: 'Assignment not found' });
+    }
+    if (assignment.mentor_id !== req.user.id) {
+      return next({ status: 403, message: 'Not authorized to comment on this submission' });
     }
 
-    // Create the comment
-    const [newComment] = await db.insert(comments)
-      .values({
-        submission_id,
-        mentor_id: req.user.id,
-        line_number,
-        comment
-      })
-      .returning();
+    // 3️⃣ create the comment
+    const newComment = await commentsRepo.create({
+      submission_id: v.submission_id,
+      mentor_id:     req.user.id,
+      line_number:   v.line_number,
+      comment:       v.comment,
+    });
 
-    res.status(201).json(newComment);
-  } catch (error) {
-    console.error('Create comment error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    return res.status(201).json(newComment);
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return next({ status: 400, message: 'Validation error', errors: err.errors });
+    }
+    logger.error('Create comment error:', err);
+    next(err);
   }
 }
 
-async function getSubmissionComments(req, res) {
+async function getSubmissionComments(req, res, next) {
   try {
     const { submissionId } = req.params;
 
-    // Verify submission exists and user has access
-    const [submission] = await db
-      .select({
-        id: submissions.id,
-        mentee_id: submissions.mentee_id,
-        assignment: {
-          mentor_id: assignments.mentor_id
-        }
-      })
-      .from(submissions)
-      .leftJoin(assignments, eq(submissions.assignment_id, assignments.id))
-      .where(eq(submissions.id, submissionId))
-      .limit(1);
-
+    const submission = await submissionsRepo.findById(submissionId);
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return next({ status: 404, message: 'Submission not found' });
     }
 
-    // Check access - either the mentor of the assignment or the mentee who submitted
-    if (submission.assignment.mentor_id !== req.user.id && submission.mentee_id !== req.user.id) {
-      return res.status(403).json({ error: 'Not authorized to view these comments' });
+    const assignment = await assignmentsRepo.findById(submission.assignment_id);
+    if (!assignment) {
+      return next({ status: 404, message: 'Assignment not found' });
     }
 
-    // Fetch comments
-    const submissionComments = await db
-      .select()
-      .from(comments)
-      .where(eq(comments.submission_id, submissionId))
-      .orderBy(comments.line_number, comments.created_at);
+    // mentor of the assignment OR mentee who submitted may view
+    const isMentor = assignment.mentor_id === req.user.id;
+    const isMentee = submission.mentee_id === req.user.id;
 
-    res.json(submissionComments);
-  } catch (error) {
-    console.error('Get submission comments error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (!isMentor && !isMentee) {
+      return next({ status: 403, message: 'Not authorized to view these comments' });
+    }
+
+    const list = await commentsRepo.findAllBySubmissionId(submissionId);
+    return res.json(list);
+  } catch (err) {
+    logger.error('Get submission comments error:', err);
+    next(err);
   }
 }
 
 module.exports = {
   createComment,
-  getSubmissionComments
-}; 
+  getSubmissionComments,
+};

@@ -5,26 +5,22 @@ const {
   getMenteeResources,
   getResourceById,
   updateResource,
-  deleteResource
+  deleteResource,
 } = require('../resources/resources.controller');
 const auth = require('../../middleware/auth');
 const checkRole = require('../../middleware/rbac');
 
 const router = express.Router();
 
-// All routes require authentication
 router.use(auth);
 
-// Mentor routes
 router.post('/', checkRole(['MENTOR']), createResource);
 router.get('/', checkRole(['MENTOR']), getResources);
 router.put('/:id', checkRole(['MENTOR']), updateResource);
 router.delete('/:id', checkRole(['MENTOR']), deleteResource);
 
-// Mentee routes
 router.get('/mine', checkRole(['MENTEE']), getMenteeResources);
 
-// Shared routes (accessible by both roles)
-router.get('/:id', auth, getResourceById); // Role check handled in controller
+router.get('/:id', auth, getResourceById);
 
-module.exports = router; 
+module.exports = router;

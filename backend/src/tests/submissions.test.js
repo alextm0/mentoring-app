@@ -1,8 +1,8 @@
 const request = require('supertest');
 const { eq } = require('drizzle-orm');
 const app = require('../app');
-const db = require('../repos/db');
-const { users, assignments, submissions } = require('../repos/schema/schema');
+const db = require('../config/database');
+const { users, assignments, submissions } = require('../models');
 const { createTestUser, createTestToken } = require('./helpers');
 
 describe('Submissions API', () => {

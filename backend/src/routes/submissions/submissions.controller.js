@@ -1,150 +1,104 @@
-const { eq, and } = require('drizzle-orm');
 const { z } = require('zod');
-const db = require('../../repos/db');
-const { submissions, assignments } = require('../../repos/schema/schema');
+const { submissionsRepo, assignmentsRepo } = require('../../repos');
+const logger = require('../../utils/logger');
 
 const submissionSchema = z.object({
   assignment_id: z.string().uuid(),
-  snippet: z.string().min(1)
+  snippet: z.string().min(1),
 });
 
 const toggleCompletedSchema = z.object({
-  completed: z.boolean()
+  completed: z.boolean(),
 });
 
-async function createSubmission(req, res) {
+async function createSubmission(req, res, next) {
   try {
-    const result = submissionSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ error: 'Invalid input', details: result.error.issues });
-    }
+    const validated = submissionSchema.parse(req.body);
 
-    const { assignment_id, snippet } = result.data;
-
-    // Verify assignment exists
-    const [assignment] = await db
-      .select()
-      .from(assignments)
-      .where(eq(assignments.id, assignment_id))
-      .limit(1);
-
+    const assignment = await assignmentsRepo.findById(validated.assignment_id);
     if (!assignment) {
-      return res.status(404).json({ error: 'Assignment not found' });
+      return next({ status: 404, message: 'Assignment not found' });
     }
 
-    // Create submission
-    const [submission] = await db.insert(submissions)
-      .values({
-        assignment_id,
-        mentee_id: req.user.id,
-        snippet,
-        completed: false
-      })
-      .returning();
+    const submission = await submissionsRepo.create({
+      assignment_id: validated.assignment_id,
+      mentee_id: req.user.id,
+      snippet: validated.snippet,
+      completed: false,
+    });
 
     res.status(201).json(submission);
   } catch (error) {
-    console.error('Create submission error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error instanceof z.ZodError) {
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
+    }
+    logger.error('Create submission error:', error);
+    next(error);
   }
 }
 
-async function getMenteeSubmissions(req, res) {
+async function getMenteeSubmissions(req, res, next) {
   try {
-    const submissionList = await db
-      .select({
-        id: submissions.id,
-        assignment_id: submissions.assignment_id,
-        snippet: submissions.snippet,
-        completed: submissions.completed,
-        created_at: submissions.created_at
-      })
-      .from(submissions)
-      .where(eq(submissions.mentee_id, req.user.id));
-
-    res.json(submissionList);
+    const submissionList = await submissionsRepo.findAllByMenteeId(req.user.id);
+    res.json(submissionList.map(submission => ({
+      id: submission.id,
+      assignment_id: submission.assignment_id,
+      snippet: submission.snippet,
+      completed: submission.completed,
+      created_at: submission.created_at,
+    })));
   } catch (error) {
-    console.error('Get mentee submissions error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error('Get mentee submissions error:', error);
+    next(error);
   }
 }
 
-async function getAssignmentSubmissions(req, res) {
+async function getAssignmentSubmissions(req, res, next) {
   try {
     const { assignmentId } = req.params;
 
-    // Verify mentor owns the assignment
-    const [assignment] = await db
-      .select()
-      .from(assignments)
-      .where(and(
-        eq(assignments.id, assignmentId),
-        eq(assignments.mentor_id, req.user.id)
-      ))
-      .limit(1);
-
-    if (!assignment) {
-      return res.status(403).json({ error: 'Access denied' });
+    const assignment = await assignmentsRepo.findById(assignmentId);
+    if (!assignment || assignment.mentor_id !== req.user.id) {
+      return next({ status: 403, message: 'Access denied' });
     }
 
-    const submissionList = await db
-      .select({
-        id: submissions.id,
-        mentee_id: submissions.mentee_id,
-        snippet: submissions.snippet,
-        completed: submissions.completed,
-        created_at: submissions.created_at
-      })
-      .from(submissions)
-      .where(eq(submissions.assignment_id, assignmentId));
-
-    res.json(submissionList);
+    const submissionList = await submissionsRepo.findAllByAssignmentId(assignmentId);
+    res.json(submissionList.map(submission => ({
+      id: submission.id,
+      mentee_id: submission.mentee_id,
+      snippet: submission.snippet,
+      completed: submission.completed,
+      created_at: submission.created_at,
+    })));
   } catch (error) {
-    console.error('Get assignment submissions error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    logger.error('Get assignment submissions error:', error);
+    next(error);
   }
 }
 
-async function toggleCompleted(req, res) {
+async function toggleCompleted(req, res, next) {
   try {
     const { id } = req.params;
-    const result = toggleCompletedSchema.safeParse(req.body);
-    if (!result.success) {
-      return res.status(400).json({ error: 'Invalid input', details: result.error.issues });
-    }
+    const validated = toggleCompletedSchema.parse(req.body);
 
-    // Get submission and verify mentor owns the assignment
-    const [submission] = await db
-      .select({
-        id: submissions.id,
-        assignment: {
-          mentor_id: assignments.mentor_id
-        }
-      })
-      .from(submissions)
-      .leftJoin(assignments, eq(submissions.assignment_id, assignments.id))
-      .where(eq(submissions.id, id))
-      .limit(1);
-
+    const submission = await submissionsRepo.findById(id);
     if (!submission) {
-      return res.status(404).json({ error: 'Submission not found' });
+      return next({ status: 404, message: 'Submission not found' });
     }
 
-    if (submission.assignment.mentor_id !== req.user.id) {
-      return res.status(403).json({ error: 'Access denied' });
+    const assignment = await assignmentsRepo.findById(submission.assignment_id);
+    if (!assignment || assignment.mentor_id !== req.user.id) {
+      return next({ status: 403, message: 'Access denied' });
     }
 
-    // Update completion status
-    const [updated] = await db
-      .update(submissions)
-      .set({ completed: result.data.completed })
-      .where(eq(submissions.id, id))
-      .returning();
-
+    const updated = await submissionsRepo.update(id, { completed: validated.completed });
     res.json(updated);
   } catch (error) {
-    console.error('Toggle completion error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    if (error instanceof z.ZodError) {
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
+    }
+    logger.error('Toggle completion error:', error);
+    next(error);
   }
 }
 
@@ -152,5 +106,5 @@ module.exports = {
   createSubmission,
   getMenteeSubmissions,
   getAssignmentSubmissions,
-  toggleCompleted
-}; 
+  toggleCompleted,
+};

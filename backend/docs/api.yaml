@@ -1,0 +1,1313 @@
+openapi: 3.0.3
+info:
+  title: Mentorship Platform API
+  description: A comprehensive API for a mentorship platform, enabling mentors to manage assignments, resources, and submissions, while allowing mentees to submit work and access resources.
+  version: 1.0.0
+servers:
+  - url: /api/v1
+    description: Main API server (versioned endpoints)
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      properties:
+        message:
+          type: string
+        errors:
+          type: array
+          items:
+            type: object
+      required:
+        - message
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [MENTOR, MENTEE]
+        mentor_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - email
+        - role
+        - created_at
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        description:
+          type: string
+        mentor_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - description
+        - mentor_id
+        - created_at
+    Resource:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        mentor_id:
+          type: string
+          format: uuid
+        assignment_id:
+          type: string
+          format: uuid
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - title
+        - url
+        - mentor_id
+        - created_at
+    Submission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        assignment_id:
+          type: string
+          format: uuid
+        mentee_id:
+          type: string
+          format: uuid
+        snippet:
+          type: string
+        completed:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - assignment_id
+        - mentee_id
+        - snippet
+        - completed
+        - created_at
+    Comment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        submission_id:
+          type: string
+          format: uuid
+        mentor_id:
+          type: string
+          format: uuid
+        line_number:
+          type: integer
+        comment:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+      required:
+        - id
+        - submission_id
+        - mentor_id
+        - line_number
+        - comment
+        - created_at
+    Health:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [healthy, unhealthy]
+        database:
+          type: string
+          enum: [connected, disconnected]
+        timestamp:
+          type: string
+          format: date-time
+        memory:
+          type: object
+          properties:
+            heapTotal:
+              type: string
+            heapUsed:
+              type: string
+        uptime:
+          type: number
+      required:
+        - status
+        - database
+        - timestamp
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - total
+        - page
+        - limit
+        - totalPages
+paths:
+  /health:
+    servers:
+      - url: /
+        description: Root server (unversioned health check)
+    get:
+      tags:
+        - System
+      summary: Check the health status of the API and database
+      description: Provides the health status, including database connectivity, memory usage, and server uptime.
+      responses:
+        '200':
+          description: API is healthy and operational
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+        '503':
+          description: API is unhealthy (e.g., database disconnected)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+
+  /auth/signup:
+    post:
+      tags:
+        - Authentication
+      summary: Register a new user
+      description: Creates a new user account with the specified email, password, and role.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                role:
+                  type: string
+                  enum: [MENTOR, MENTEE]
+              required:
+                - email
+                - password
+                - role
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Validation error or user already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Log in a user
+      description: Authenticates a user and returns a JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+              required:
+                - email
+                - password
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/me:
+    get:
+      tags:
+        - Users
+      summary: Retrieve current user details
+      description: Returns the details of the authenticated user.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized access
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/mentor:
+    get:
+      tags:
+        - Users
+      summary: Retrieve mentor details for a mentee
+      description: Returns the mentor details for the authenticated mentee.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Mentor details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '403':
+          description: Access denied (not a mentee)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Mentor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{userId}/mentees:
+    get:
+      tags:
+        - Users
+      summary: List mentees of a mentor
+      description: Returns a paginated list of mentees associated with the specified mentor.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the mentor
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of mentees retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/User'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Mentor not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    post:
+      tags:
+        - Users
+      summary: Attach a mentee to a mentor
+      description: Assigns a mentee to the specified mentor.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the mentor
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                menteeId:
+                  type: string
+                  format: uuid
+              required:
+                - menteeId
+      responses:
+        '200':
+          description: Mentee attached successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  mentee:
+                    $ref: '#/components/schemas/User'
+        '400':
+          description: Mentee already has a mentor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Mentor or mentee not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /users/{userId}/mentees/{menteeId}:
+    delete:
+      tags:
+        - Users
+      summary: Detach a mentee from a mentor
+      description: Removes the specified mentee from the mentor's list.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: userId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the mentor
+        - in: path
+          name: menteeId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the mentee
+      responses:
+        '200':
+          description: Mentee detached successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Mentee not found or not attached
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assignments:
+    post:
+      tags:
+        - Assignments
+      summary: Create a new assignment
+      description: Allows a mentor to create a new assignment.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+              required:
+                - title
+                - description
+      responses:
+        '201':
+          description: Assignment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied (not a mentor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+        - Assignments
+      summary: List mentor's assignments
+      description: Returns a paginated list of assignments created by the authenticated mentor.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of assignments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Assignment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assignments/mine:
+    get:
+      tags:
+        - Assignments
+      summary: List mentee's assignments
+      description: Returns a paginated list of assignments assigned to the authenticated mentee.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of assignments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Assignment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: No mentor assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assignments/{id}:
+    put:
+      tags:
+        - Assignments
+      summary: Update an assignment
+      description: Allows a mentor to update an existing assignment.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the assignment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                description:
+                  type: string
+              required:
+                - title
+                - description
+      responses:
+        '200':
+          description: Assignment updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Assignment'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Assignments
+      summary: Delete an assignment
+      description: Allows a mentor to delete an existing assignment.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the assignment
+      responses:
+        '200':
+          description: Assignment deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resources:
+    post:
+      tags:
+        - Resources
+      summary: Create a new resource
+      description: Allows a mentor to create a new resource, optionally linked to an assignment.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                assignment_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+              required:
+                - title
+                - url
+      responses:
+        '201':
+          description: Resource created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    get:
+      tags:
+        - Resources
+      summary: List mentor's resources
+      description: Returns a paginated list of resources created by the authenticated mentor.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: assignment_id
+          schema:
+            type: string
+            format: uuid
+          description: Filter by assignment ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of resources retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Resource'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resources/mine:
+    get:
+      tags:
+        - Resources
+      summary: List mentee's resources
+      description: Returns a paginated list of resources assigned to the authenticated mentee.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: assignment_id
+          schema:
+            type: string
+            format: uuid
+          description: Filter by assignment ID
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of resources retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Resource'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '404':
+          description: No mentor assigned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /resources/{id}:
+    get:
+      tags:
+        - Resources
+      summary: Retrieve a resource by ID
+      description: Returns the details of a specific resource.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the resource
+      responses:
+        '200':
+          description: Resource details retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Resources
+      summary: Update a resource
+      description: Allows a mentor to update an existing resource.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the resource
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                url:
+                  type: string
+                  format: uri
+                assignment_id:
+                  type: string
+                  format: uuid
+                  nullable: true
+              required:
+                - title
+                - url
+      responses:
+        '200':
+          description: Resource updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Resource'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource or assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Resources
+      summary: Delete a resource
+      description: Allows a mentor to delete an existing resource.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the resource
+      responses:
+        '200':
+          description: Resource deleted successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Resource not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions:
+    post:
+      tags:
+        - Submissions
+      summary: Create a new submission
+      description: Allows a mentee to create a new submission for an assignment.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assignment_id:
+                  type: string
+                  format: uuid
+                snippet:
+                  type: string
+              required:
+                - assignment_id
+                - snippet
+      responses:
+        '201':
+          description: Submission created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied (not a mentee)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions/mine:
+    get:
+      tags:
+        - Submissions
+      summary: List mentee's submissions
+      description: Returns a paginated list of submissions made by the authenticated mentee.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of submissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Submission'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions/{assignmentId}:
+    get:
+      tags:
+        - Submissions
+      summary: List submissions for an assignment
+      description: Returns a paginated list of submissions for the specified assignment (mentors only).
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the assignment
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of submissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Submission'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions/{id}/complete:
+    patch:
+      tags:
+        - Submissions
+      summary: Toggle submission completion status
+      description: Allows a mentor to toggle the completion status of a submission.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                completed:
+                  type: boolean
+              required:
+                - completed
+      responses:
+        '200':
+          description: Submission status updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /comments:
+    post:
+      tags:
+        - Comments
+      summary: Create a new comment
+      description: Allows a mentor to add a comment to a submission.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                submission_id:
+                  type: string
+                  format: uuid
+                line_number:
+                  type: integer
+                comment:
+                  type: string
+              required:
+                - submission_id
+                - line_number
+                - comment
+      responses:
+        '201':
+          description: Comment created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /comments/{submissionId}:
+    get:
+      tags:
+        - Comments
+      summary: List comments for a submission
+      description: Returns a paginated list of comments for the specified submission.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the submission
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+      responses:
+        '200':
+          description: List of comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Comment'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+security:
+  - BearerAuth: []

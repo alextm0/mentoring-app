@@ -1,8 +1,8 @@
 const request = require('supertest');
 const { eq } = require('drizzle-orm');
 const app = require('../app');
-const db = require('../repos/db');
-const { users, assignments, submissions, comments, resources } = require('../repos/schema/schema');
+const db = require('../config/database');
+const { users, assignments, submissions, comments, resources } = require('../models');
 const { createTestUser, createTestToken } = require('./helpers');
 
 const API_PREFIX = '/api/v1';

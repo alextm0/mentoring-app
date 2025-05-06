@@ -1,63 +1,66 @@
 const request = require('supertest');
-const app = require('../app');
-const db = require('../repos/db');
-const { users } = require('../repos/schema/schema');
-const { eq } = require('drizzle-orm');
+const app     = require('../app');
+const db      = require('../config/database');
+const { users } = require('../models');
+const { eq }  = require('drizzle-orm');
 
 const API_PREFIX = '/api/v1';
 
 describe('User Endpoints', () => {
-  let mentorToken;
-  let mentorId;
-  let menteeToken;
-  let menteeId;
+  let mentorToken, mentorId;
+  let menteeToken, menteeId;
 
+  // baseline accounts
   const mentorUser = {
     email: 'mentor@test.com',
     password: 'password123',
-    role: 'MENTOR'
+    role: 'MENTOR',
   };
 
   const menteeUser = {
     email: 'mentee@test.com',
     password: 'password123',
-    role: 'MENTEE'
+    role: 'MENTEE',
   };
 
+  /* ──────────────────────────── setup / teardown ─────────────────────────── */
+
   beforeAll(async () => {
-    // Clean up test users
+    // ensure a clean slate
     await db.delete(users).where(eq(users.email, menteeUser.email));
     await db.delete(users).where(eq(users.email, mentorUser.email));
-    await new Promise(resolve => setTimeout(resolve, 100));
 
-    // Create mentor
+    /* ─ create mentor ─ */
     const mentorRes = await request(app)
       .post(`${API_PREFIX}/auth/signup`)
-      .send(mentorUser);
-    mentorToken = mentorRes.body.token;
-    mentorId = mentorRes.body.user.id;
+      .send(mentorUser)
+      .expect(201);
 
-    // Create mentee
+    mentorToken = mentorRes.body.token;
+    mentorId    = mentorRes.body.user.id;
+
+    /* ─ create mentee ─ */
     const menteeRes = await request(app)
       .post(`${API_PREFIX}/auth/signup`)
-      .send(menteeUser);
-    menteeToken = menteeRes.body.token;
-    menteeId = menteeRes.body.user.id;
+      .send(menteeUser)
+      .expect(201);
 
-    // Link mentee to mentor
+    menteeToken = menteeRes.body.token;
+    menteeId    = menteeRes.body.user.id;
+
+    /* ─ link mentee → mentor ─ */
     await db
       .update(users)
       .set({ mentor_id: mentorId })
       .where(eq(users.id, menteeId));
-
-    await new Promise(resolve => setTimeout(resolve, 100));
   });
 
   afterAll(async () => {
     await db.delete(users).where(eq(users.email, menteeUser.email));
     await db.delete(users).where(eq(users.email, mentorUser.email));
-    await new Promise(resolve => setTimeout(resolve, 500));
   });
+
+  /* ─────────────────────────── /users/me ─────────────────────────── */
 
   describe('GET /users/me', () => {
     it('should return authenticated user profile', async () => {
@@ -67,7 +70,7 @@ describe('User Endpoints', () => {
         .expect(200);
 
       expect(res.body).toHaveProperty('email', menteeUser.email);
-      expect(res.body).toHaveProperty('role', menteeUser.role);
+      expect(res.body).toHaveProperty('role',  menteeUser.role);
       expect(res.body).toHaveProperty('mentor_id', mentorId);
       expect(res.body).not.toHaveProperty('password_hash');
     });
@@ -79,6 +82,8 @@ describe('User Endpoints', () => {
     });
   });
 
+  /* ───────────────────────── /users/mentees ───────────────────────── */
+
   describe('GET /users/mentees', () => {
     it('should allow mentor to view their mentees', async () => {
       const res = await request(app)
@@ -87,7 +92,6 @@ describe('User Endpoints', () => {
         .expect(200);
 
       expect(Array.isArray(res.body)).toBe(true);
-      expect(res.body.length).toBeGreaterThan(0);
       const mentee = res.body.find(u => u.id === menteeId);
       expect(mentee).toBeTruthy();
       expect(mentee.email).toBe(menteeUser.email);
@@ -101,6 +105,8 @@ describe('User Endpoints', () => {
     });
   });
 
+  /* ───────────────────────── /users/mentor ───────────────────────── */
+
   describe('GET /users/mentor', () => {
     it('should allow mentee to view their mentor', async () => {
       const res = await request(app)
@@ -108,7 +114,7 @@ describe('User Endpoints', () => {
         .set('Authorization', `Bearer ${menteeToken}`)
         .expect(200);
 
-      expect(res.body).toHaveProperty('id', mentorId);
+      expect(res.body).toHaveProperty('id',    mentorId);
       expect(res.body).toHaveProperty('email', mentorUser.email);
     });
 
@@ -120,24 +126,27 @@ describe('User Endpoints', () => {
     });
 
     it('should return 404 if mentee has no mentor', async () => {
-      // Create a new mentee without mentor
-      const unassignedMentee = {
-        email: 'unassigned@test.com',
+      /* create a fresh, un‑linked mentee */
+      const unassigned = {
+        email: `unassigned_${Date.now()}@test.com`,
         password: 'password123',
-        role: 'MENTEE'
+        role: 'MENTEE',
       };
 
-      const menteeRes = await request(app)
+      const signupRes = await request(app)
         .post(`${API_PREFIX}/auth/signup`)
-        .send(unassignedMentee);
+        .send(unassigned)
+        .expect(201);
+
+      const token = signupRes.body.token;
 
       await request(app)
         .get(`${API_PREFIX}/users/mentor`)
-        .set('Authorization', `Bearer ${menteeRes.body.token}`)
+        .set('Authorization', `Bearer ${token}`)
         .expect(404);
 
-      // Clean up
-      await db.delete(users).where(eq(users.email, unassignedMentee.email));
+      // cleanup
+      await db.delete(users).where(eq(users.email, unassigned.email));
     });
   });
-}); 
+});

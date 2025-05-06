@@ -1,93 +1,72 @@
-const { eq } = require('drizzle-orm');
-const db = require('../repos/db');
-const { users } = require('../repos/schema/schema');
+const { usersRepo } = require('../../repos');
+const logger = require('../../utils/logger');
 
-async function getMe(req, res) {
+async function getMe(req, res, next) {
   try {
-    const [user] = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        role: users.role,
-        mentor_id: users.mentor_id,
-        created_at: users.created_at
-      })
-      .from(users)
-      .where(eq(users.id, req.user.id))
-      .limit(1);
-
+    const user = await usersRepo.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return next({ status: 404, message: 'User not found' });
     }
-
-    res.json(user);
+    res.json({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      mentor_id: user.mentor_id,
+    });
   } catch (error) {
-    console.error('Get me error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get me error:', error);
+    next(error);
   }
 }
 
-async function getMentees(req, res) {
+async function getMentees(req, res, next) {
   try {
     if (req.user.role !== 'MENTOR') {
-      return res.status(403).json({ message: 'Only mentors can view mentees' });
+      return next({ status: 403, message: 'Only mentors can view mentees' });
     }
 
-    const mentees = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        created_at: users.created_at
-      })
-      .from(users)
-      .where(eq(users.mentor_id, req.user.id));
-
-    res.json(mentees);
+    const mentees = await usersRepo.findMenteesByMentorId(req.user.id);
+    res.json(mentees.map(mentee => ({
+      id: mentee.id,
+      email: mentee.email,
+    })));
   } catch (error) {
-    console.error('Get mentees error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get mentees error:', error);
+    next(error);
   }
 }
 
-async function getMentor(req, res) {
+async function getMentor(req, res, next) {
   try {
     if (req.user.role !== 'MENTEE') {
-      return res.status(403).json({ message: 'Only mentees can view their mentor' });
+      return next({ status: 403, message: 'Only mentees can view their mentor' });
     }
 
-    const [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.user.id))
-      .limit(1);
-
+    const user = await usersRepo.findById(req.user.id);
+    if (!user) {
+      return next({ status: 404, message: 'User not found' });
+    }
     if (!user.mentor_id) {
-      return res.status(404).json({ message: 'No mentor assigned' });
+      return next({ status: 404, message: 'No mentor assigned' });
     }
 
-    const [mentor] = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        created_at: users.created_at
-      })
-      .from(users)
-      .where(eq(users.id, user.mentor_id))
-      .limit(1);
-
-    if (!mentor) {
-      return res.status(404).json({ message: 'Mentor not found' });
+    const mentor = await usersRepo.findById(user.mentor_id);
+    if (!mentor || mentor.role !== 'MENTOR') {
+      return next({ status: 404, message: 'Mentor not found' });
     }
 
-    res.json(mentor);
+    res.json({
+      id: mentor.id,
+      email: mentor.email,
+    });
   } catch (error) {
-    console.error('Get mentor error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get mentor error:', error);
+    next(error);
   }
 }
 
 module.exports = {
   getMe,
   getMentees,
-  getMentor
-}; 
+  getMentor,
+};

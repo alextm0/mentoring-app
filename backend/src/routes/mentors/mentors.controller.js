@@ -1,163 +1,103 @@
-const { eq, and } = require('drizzle-orm');
-const db = require('../../repos/db');
-const { users } = require('../../repos/schema/schema');
+const { usersRepo } = require('../../repos');
+const errorHandler = require('../../utils/errorHandler');
+const logger = require('../../utils/logger');
 const { z } = require('zod');
 
 const menteeIdSchema = z.object({
-  menteeId: z.string().uuid()
+  menteeId: z.string().uuid(),
 });
 
-async function getMe(req, res) {
+async function getMe(req, res, next) {
   try {
-    const [user] = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        role: users.role,
-        mentor_id: users.mentor_id,
-        created_at: users.created_at
-      })
-      .from(users)
-      .where(eq(users.id, req.user.id))
-      .limit(1);
-
+    const user = await usersRepo.findById(req.user.id);
     if (!user) {
-      return res.status(404).json({ message: 'User not found' });
+      return next({ status: 404, message: 'User not found' });
     }
-
-    res.json(user);
+    res.json({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      mentor_id: user.mentor_id,
+      created_at: user.created_at,
+    });
   } catch (error) {
-    console.error('Get me error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get me error:', error);
+    next(error);
   }
 }
 
-async function attachMentee(req, res) {
+async function attachMentee(req, res, next) {
   try {
     const { mentorId } = req.params;
     const validated = menteeIdSchema.parse(req.body);
 
-    // Verify mentor exists and is actually a mentor
-    const [mentor] = await db
-      .select()
-      .from(users)
-      .where(and(
-        eq(users.id, mentorId),
-        eq(users.role, 'MENTOR')
-      ))
-      .limit(1);
-
-    if (!mentor) {
-      return res.status(404).json({ message: 'Mentor not found' });
+    const mentor = await usersRepo.findById(mentorId);
+    if (!mentor || mentor.role !== 'MENTOR') {
+      return next({ status: 404, message: 'Mentor not found' });
     }
 
-    // Verify mentee exists and is actually a mentee
-    const [mentee] = await db
-      .select()
-      .from(users)
-      .where(and(
-        eq(users.id, validated.menteeId),
-        eq(users.role, 'MENTEE')
-      ))
-      .limit(1);
-
-    if (!mentee) {
-      return res.status(404).json({ message: 'Mentee not found' });
+    const mentee = await usersRepo.findById(validated.menteeId);
+    if (!mentee || mentee.role !== 'MENTEE') {
+      return next({ status: 404, message: 'Mentee not found' });
     }
 
-    // Check if mentee already has a mentor
     if (mentee.mentor_id) {
-      return res.status(400).json({ message: 'Mentee already has a mentor' });
+      return next({ status: 400, message: 'Mentee already has a mentor' });
     }
 
-    // Attach mentee to mentor
-    const [updatedMentee] = await db
-      .update(users)
-      .set({ mentor_id: mentorId })
-      .where(eq(users.id, validated.menteeId))
-      .returning();
-
+    const updatedMentee = await usersRepo.update(validated.menteeId, { mentor_id: mentorId });
     res.json({
       message: 'Mentee attached successfully',
       mentee: {
         id: updatedMentee.id,
         email: updatedMentee.email,
-        mentor_id: updatedMentee.mentor_id
-      }
+        mentor_id: updatedMentee.mentor_id,
+      },
     });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: 'Validation error', errors: error.errors });
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
     }
-    console.error('Attach mentee error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Attach mentee error:', error);
+    next(error);
   }
 }
 
-async function getMentees(req, res) {
+async function getMentees(req, res, next) {
   try {
     const { mentorId } = req.params;
 
-    // Verify mentor exists
-    const [mentor] = await db
-      .select()
-      .from(users)
-      .where(and(
-        eq(users.id, mentorId),
-        eq(users.role, 'MENTOR')
-      ))
-      .limit(1);
-
-    if (!mentor) {
-      return res.status(404).json({ message: 'Mentor not found' });
+    const mentor = await usersRepo.findById(mentorId);
+    if (!mentor || mentor.role !== 'MENTOR') {
+      return next({ status: 404, message: 'Mentor not found' });
     }
 
-    // Get all mentees for this mentor
-    const mentees = await db
-      .select({
-        id: users.id,
-        email: users.email,
-        created_at: users.created_at
-      })
-      .from(users)
-      .where(eq(users.mentor_id, mentorId));
-
-    res.json(mentees);
+    const mentees = await usersRepo.findMenteesByMentorId(mentorId);
+    res.json(mentees.map(mentee => ({
+      id: mentee.id,
+      email: mentee.email,
+      created_at: mentee.created_at,
+    })));
   } catch (error) {
-    console.error('Get mentees error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get mentees error:', error);
+    next(error);
   }
 }
 
-async function detachMentee(req, res) {
+async function detachMentee(req, res, next) {
   try {
     const { mentorId, menteeId } = req.params;
 
-    // Verify mentee belongs to this mentor
-    const [mentee] = await db
-      .select()
-      .from(users)
-      .where(and(
-        eq(users.id, menteeId),
-        eq(users.mentor_id, mentorId),
-        eq(users.role, 'MENTEE')
-      ))
-      .limit(1);
-
-    if (!mentee) {
-      return res.status(404).json({ message: 'Mentee not found or not attached to this mentor' });
+    const mentee = await usersRepo.findById(menteeId);
+    if (!mentee || mentee.role !== 'MENTEE' || mentee.mentor_id !== mentorId) {
+      return next({ status: 404, message: 'Mentee not found or not attached to this mentor' });
     }
 
-    // Detach mentee
-    await db
-      .update(users)
-      .set({ mentor_id: null })
-      .where(eq(users.id, menteeId));
-
+    await usersRepo.update(menteeId, { mentor_id: null });
     res.json({ message: 'Mentee detached successfully' });
   } catch (error) {
-    console.error('Detach mentee error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Detach mentee error:', error);
+    next(error);
   }
 }
 
@@ -165,5 +105,5 @@ module.exports = {
   getMe,
   attachMentee,
   getMentees,
-  detachMentee
-}; 
+  detachMentee,
+};

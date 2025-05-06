@@ -1,223 +1,155 @@
-const { eq, and, isNull, or } = require('drizzle-orm');
-const db = require('../../repos/db');
-const { resources, users, assignments } = require('../../repos/schema/schema');
 const { z } = require('zod');
+const { resourcesRepo, assignmentsRepo, usersRepo } = require('../../repos');
+const logger = require('../../utils/logger');
 
 const resourceSchema = z.object({
   title: z.string().min(1),
   url: z.string().url(),
-  assignment_id: z.string().uuid().optional()
+  assignment_id: z.string().uuid().optional(),
 });
 
-async function createResource(req, res) {
+async function createResource(req, res, next) {
   try {
     const validated = resourceSchema.parse(req.body);
-    
-    // If assignment_id is provided, verify it exists and belongs to mentor
-    if (validated.assignment_id) {
-      const [assignment] = await db
-        .select()
-        .from(assignments)
-        .where(and(
-          eq(assignments.id, validated.assignment_id),
-          eq(assignments.mentor_id, req.user.id)
-        ))
-        .limit(1);
 
-      if (!assignment) {
-        return res.status(404).json({ message: 'Assignment not found' });
+    if (validated.assignment_id) {
+      const assignment = await assignmentsRepo.findById(validated.assignment_id);
+      if (!assignment || assignment.mentor_id !== req.user.id) {
+        return next({ status: 404, message: 'Assignment not found or unauthorized' });
       }
     }
 
-    const [resource] = await db.insert(resources).values({
+    const resource = await resourcesRepo.create({
       mentor_id: req.user.id,
       title: validated.title,
       url: validated.url,
-      assignment_id: validated.assignment_id
-    }).returning();
+      assignment_id: validated.assignment_id,
+    });
 
     res.status(201).json(resource);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: 'Validation error', errors: error.errors });
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
     }
-    console.error('Create resource error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Create resource error:', error);
+    next(error);
   }
 }
 
-async function getResources(req, res) {
+async function getResources(req, res, next) {
   try {
     const { assignment_id } = req.query;
-    let query = db
-      .select()
-      .from(resources)
-      .where(eq(resources.mentor_id, req.user.id));
-
+    let resources;
     if (assignment_id) {
-      query = query.where(eq(resources.assignment_id, assignment_id));
+      resources = await resourcesRepo.findAllByAssignmentId(assignment_id);
+      const assignment = await assignmentsRepo.findById(assignment_id);
+      if (!assignment || assignment.mentor_id !== req.user.id) {
+        return next({ status: 403, message: 'Access denied to this assignment' });
+      }
+    } else {
+      resources = await resourcesRepo.findAllByMentorId(req.user.id);
     }
-
-    const resourceList = await query;
-    res.json(resourceList);
+    res.json(resources);
   } catch (error) {
-    console.error('Get resources error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get resources error:', error);
+    next(error);
   }
 }
 
-async function getMenteeResources(req, res) {
+async function getMenteeResources(req, res, next) {
   try {
-    // Get mentee's mentor_id
-    const [mentee] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.user.id))
-      .limit(1);
-
-    if (!mentee.mentor_id) {
-      return res.status(404).json({ message: 'No mentor assigned' });
+    const mentee = await usersRepo.findById(req.user.id);
+    if (!mentee || !mentee.mentor_id) {
+      return next({ status: 404, message: 'No mentor assigned' });
     }
 
     const { assignment_id } = req.query;
-    let query = db
-      .select()
-      .from(resources)
-      .where(eq(resources.mentor_id, mentee.mentor_id));
+    let resources = await resourcesRepo.findAllByMentorId(mentee.mentor_id);
 
     if (assignment_id) {
-      query = query.where(or(
-        eq(resources.assignment_id, assignment_id),
-        isNull(resources.assignment_id)
-      ));
+      resources = resources.filter(resource =>
+        resource.assignment_id === assignment_id || !resource.assignment_id
+      );
     }
 
-    const resourceList = await query;
-    res.json(resourceList);
+    res.json(resources);
   } catch (error) {
-    console.error('Get mentee resources error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get mentee resources error:', error);
+    next(error);
   }
 }
 
-async function getResourceById(req, res) {
+async function getResourceById(req, res, next) {
   try {
     const { id } = req.params;
-    const [resource] = await db
-      .select()
-      .from(resources)
-      .where(eq(resources.id, id))
-      .limit(1);
-
+    const resource = await resourcesRepo.findById(id);
     if (!resource) {
-      return res.status(404).json({ message: 'Resource not found' });
+      return next({ status: 404, message: 'Resource not found' });
     }
 
-    // If user is mentee, verify the resource belongs to their mentor
     if (req.user.role === 'MENTEE') {
-      const [mentee] = await db
-        .select()
-        .from(users)
-        .where(eq(users.id, req.user.id))
-        .limit(1);
-
+      const mentee = await usersRepo.findById(req.user.id);
       if (!mentee.mentor_id || resource.mentor_id !== mentee.mentor_id) {
-        return res.status(403).json({ message: 'Access denied' });
+        return next({ status: 403, message: 'Access denied' });
       }
-    }
-    // If user is mentor, verify ownership
-    else if (resource.mentor_id !== req.user.id) {
-      return res.status(403).json({ message: 'Access denied' });
+    } else if (resource.mentor_id !== req.user.id) {
+      return next({ status: 403, message: 'Access denied' });
     }
 
     res.json(resource);
   } catch (error) {
-    console.error('Get resource error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Get resource error:', error);
+    next(error);
   }
 }
 
-async function updateResource(req, res) {
+async function updateResource(req, res, next) {
   try {
     const { id } = req.params;
     const validated = resourceSchema.parse(req.body);
 
-    // Verify ownership
-    const [existing] = await db
-      .select()
-      .from(resources)
-      .where(and(
-        eq(resources.id, id),
-        eq(resources.mentor_id, req.user.id)
-      ))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({ message: 'Resource not found' });
+    const existing = await resourcesRepo.findById(id);
+    if (!existing || existing.mentor_id !== req.user.id) {
+      return next({ status: 404, message: 'Resource not found or unauthorized' });
     }
 
-    // If assignment_id is provided, verify it exists and belongs to mentor
     if (validated.assignment_id) {
-      const [assignment] = await db
-        .select()
-        .from(assignments)
-        .where(and(
-          eq(assignments.id, validated.assignment_id),
-          eq(assignments.mentor_id, req.user.id)
-        ))
-        .limit(1);
-
-      if (!assignment) {
-        return res.status(404).json({ message: 'Assignment not found' });
+      const assignment = await assignmentsRepo.findById(validated.assignment_id);
+      if (!assignment || assignment.mentor_id !== req.user.id) {
+        return next({ status: 404, message: 'Assignment not found or unauthorized' });
       }
     }
 
-    const [updated] = await db
-      .update(resources)
-      .set({
-        title: validated.title,
-        url: validated.url,
-        assignment_id: validated.assignment_id
-      })
-      .where(eq(resources.id, id))
-      .returning();
+    const updated = await resourcesRepo.update(id, {
+      title: validated.title,
+      url: validated.url,
+      assignment_id: validated.assignment_id,
+    });
 
     res.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: 'Validation error', errors: error.errors });
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
     }
-    console.error('Update resource error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Update resource error:', error);
+    next(error);
   }
 }
 
-async function deleteResource(req, res) {
+async function deleteResource(req, res, next) {
   try {
     const { id } = req.params;
 
-    // Verify ownership
-    const [existing] = await db
-      .select()
-      .from(resources)
-      .where(and(
-        eq(resources.id, id),
-        eq(resources.mentor_id, req.user.id)
-      ))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({ message: 'Resource not found' });
+    const existing = await resourcesRepo.findById(id);
+    if (!existing || existing.mentor_id !== req.user.id) {
+      return next({ status: 404, message: 'Resource not found or unauthorized' });
     }
 
-    await db
-      .delete(resources)
-      .where(eq(resources.id, id));
-
+    await resourcesRepo.remove(id);
     res.json({ message: 'Resource deleted successfully' });
   } catch (error) {
-    console.error('Delete resource error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    logger.error('Delete resource error:', error);
+    next(error);
   }
 }
 
@@ -227,5 +159,5 @@ module.exports = {
   getMenteeResources,
   getResourceById,
   updateResource,
-  deleteResource
-}; 
+  deleteResource,
+};

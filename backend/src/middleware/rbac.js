@@ -1,15 +1,17 @@
-function checkRole(roles) {
+const logger = require('../utils/errorHandler');
+
+const rbac = (allowedRoles) => {
   return (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ message: 'Unauthorized' });
+    try {
+      if (!req.user || !allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ message: 'Access denied' });
+      }
+      next();
+    } catch (error) {
+      logger.error('RBAC error:', error);
+      res.status(403).json({ message: 'Access denied' });
     }
-
-    if (!roles.includes(req.user.role)) {
-      return res.status(403).json({ message: 'Forbidden' });
-    }
-
-    next();
   };
-}
+};
 
-module.exports = checkRole; 
+module.exports = rbac;

@@ -1,30 +1,43 @@
-const jwt = require('jsonwebtoken');
+// src/middleware/auth.js
+const jwt    = require('jsonwebtoken');
+const env    = require('../config/env');
+const logger = require('../utils/logger');
 
-function auth(req, res, next) {
+const JWT_REGEX = /^[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+\.[A-Za-z0-9\-_]+$/;
+
+const auth = (req, res, next) => {
+  // 1) Grab header
+  const authHeader = req.headers.authorization;
+  if (!authHeader) {
+    return res.status(401).json({ message: 'Authentication required' });
+  }
+
+  // 2) Expect "Bearer <token>"
+  const parts = authHeader.split(' ');
+  if (parts.length !== 2 || parts[0] !== 'Bearer') {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+  const token = parts[1];
+
+  // 3) Quick format check
+  if (!JWT_REGEX.test(token)) {
+    return res.status(401).json({ message: 'Invalid token' });
+  }
+
+  // 4) Verify signature & expiration
   try {
-    const authHeader = req.headers.authorization;
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ message: 'No token provided' });
-    }
+    const decoded = jwt.verify(token, env.JWT_SECRET);
+    req.user = { id: decoded.id, role: decoded.role };
+    return next();
+  } catch (err) {
+    logger.error('Authentication error:', err);
 
-    const token = authHeader.split(' ')[1];
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'test-secret');
-    
-    req.user = {
-      id: decoded.id,
-      role: decoded.role
-    };
-    
-    next();
-  } catch (error) {
-    if (error.name === 'JsonWebTokenError') {
-      return res.status(401).json({ message: 'Invalid token' });
-    }
-    if (error.name === 'TokenExpiredError') {
+    if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ message: 'Token expired' });
     }
-    next(error);
+    // covers JsonWebTokenError: invalid signature, jwt malformed, etc.
+    return res.status(401).json({ message: 'Invalid token' });
   }
-}
+};
 
-module.exports = auth; 
+module.exports = auth;

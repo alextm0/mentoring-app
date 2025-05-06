@@ -1,147 +1,88 @@
-const { eq, and } = require('drizzle-orm');
-const db = require('../../repos/db');
-const { assignments, users } = require('../../repos/schema/schema');
 const { z } = require('zod');
+const { assignmentsRepo } = require('../../repos');
+const { usersRepo }      = require('../../repos'); // ← import usersRepo
+const errorHandler       = require('../../utils/errorHandler');
 
 const assignmentSchema = z.object({
-  title: z.string().min(1),
-  description: z.string().optional()
+  title:       z.string().min(1),
+  description: z.string().optional(),
 });
 
-async function createAssignment(req, res) {
+async function createAssignment(req, res, next) {
   try {
     const validated = assignmentSchema.parse(req.body);
-    
-    const [assignment] = await db.insert(assignments).values({
-      mentor_id: req.user.id,
-      title: validated.title,
-      description: validated.description
-    }).returning();
-
+    const assignment = await assignmentsRepo.create({
+      mentor_id:  req.user.id,
+      title:      validated.title,
+      description: validated.description,
+    });
     res.status(201).json(assignment);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: 'Validation error', errors: error.errors });
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
     }
-    console.error('Create assignment error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 }
 
-async function getAssignments(req, res) {
+async function getAssignments(req, res, next) {
   try {
-    const assignmentList = await db
-      .select({
-        id: assignments.id,
-        title: assignments.title,
-        description: assignments.description,
-        created_at: assignments.created_at
-      })
-      .from(assignments)
-      .where(eq(assignments.mentor_id, req.user.id));
-
+    const assignmentList = await assignmentsRepo.findAllByMentorId(req.user.id);
     res.json(assignmentList);
   } catch (error) {
-    console.error('Get assignments error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 }
 
-async function getMenteeAssignments(req, res) {
+async function getMenteeAssignments(req, res, next) {
   try {
-    // Get mentee's mentor_id
-    const [mentee] = await db
-      .select()
-      .from(users)
-      .where(eq(users.id, req.user.id))
-      .limit(1);
-
-    if (!mentee.mentor_id) {
-      return res.status(404).json({ message: 'No mentor assigned' });
+    const user = await usersRepo.findById(req.user.id);
+    if (!user?.mentor_id) {
+      return next({ status: 404, message: 'No mentor assigned' });
     }
-
-    // Get assignments from mentor
-    const assignmentList = await db
-      .select({
-        id: assignments.id,
-        title: assignments.title,
-        description: assignments.description,
-        created_at: assignments.created_at
-      })
-      .from(assignments)
-      .where(eq(assignments.mentor_id, mentee.mentor_id));
-
+    const assignmentList = await assignmentsRepo.findAllByMentorId(user.mentor_id);
     res.json(assignmentList);
   } catch (error) {
-    console.error('Get mentee assignments error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 }
 
-async function updateAssignment(req, res) {
+async function updateAssignment(req, res, next) {
   try {
     const { id } = req.params;
     const validated = assignmentSchema.parse(req.body);
 
-    // Verify ownership
-    const [existing] = await db
-      .select()
-      .from(assignments)
-      .where(and(
-        eq(assignments.id, id),
-        eq(assignments.mentor_id, req.user.id)
-      ))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({ message: 'Assignment not found' });
+    const existing = await assignmentsRepo.findById(id);
+    if (!existing || existing.mentor_id !== req.user.id) {
+      return next({ status: 404, message: 'Assignment not found or unauthorized' });
     }
 
-    const [updated] = await db
-      .update(assignments)
-      .set({
-        title: validated.title,
-        description: validated.description
-      })
-      .where(eq(assignments.id, id))
-      .returning();
-
+    const updated = await assignmentsRepo.update(id, {
+      title:      validated.title,
+      description: validated.description,
+    });
     res.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return res.status(400).json({ message: 'Validation error', errors: error.errors });
+      return next({ status: 400, message: 'Validation error', errors: error.errors });
     }
-    console.error('Update assignment error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 }
 
-async function deleteAssignment(req, res) {
+async function deleteAssignment(req, res, next) {
   try {
     const { id } = req.params;
 
-    // Verify ownership
-    const [existing] = await db
-      .select()
-      .from(assignments)
-      .where(and(
-        eq(assignments.id, id),
-        eq(assignments.mentor_id, req.user.id)
-      ))
-      .limit(1);
-
-    if (!existing) {
-      return res.status(404).json({ message: 'Assignment not found' });
+    const existing = await assignmentsRepo.findById(id);
+    if (!existing || existing.mentor_id !== req.user.id) {
+      return next({ status: 404, message: 'Assignment not found or unauthorized' });
     }
 
-    await db
-      .delete(assignments)
-      .where(eq(assignments.id, id));
-
+    await assignmentsRepo.remove(id);
     res.json({ message: 'Assignment deleted successfully' });
   } catch (error) {
-    console.error('Delete assignment error:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    next(error);
   }
 }
 
@@ -150,5 +91,5 @@ module.exports = {
   getAssignments,
   getMenteeAssignments,
   updateAssignment,
-  deleteAssignment
-}; 
+  deleteAssignment,
+};

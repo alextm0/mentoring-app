@@ -5,7 +5,7 @@ const auth = require('../../middleware/auth');
 const rbac = require('../../middleware/rbac');
 
 // POST /api/v1/comments - Create a new comment (mentors only)
-router.post('/', 
+router.post('/',
   auth,
   rbac(['MENTOR']),
   createComment
@@ -17,4 +17,4 @@ router.get('/:submissionId',
   getSubmissionComments
 );
 
-module.exports = router; 
+module.exports = router;

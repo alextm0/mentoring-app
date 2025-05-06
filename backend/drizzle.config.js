@@ -3,8 +3,8 @@ require('dotenv').config();
 
 /** @type { import("drizzle-kit").Config } */
 module.exports = {
-  schema: './src/repos/schema/schema.js',
-  out: './src/repos/schema/migrations',
+  schema: './src/models/*.js',
+  out: './migrations',
   driver: 'pg',
   dbCredentials: {
     connectionString: process.env.DATABASE_URL,
