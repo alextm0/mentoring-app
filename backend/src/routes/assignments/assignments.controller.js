@@ -34,6 +34,16 @@ async function getAssignments(req, res, next) {
   }
 }
 
+async function getAssignmentById(req, res, next) {
+  try {
+    const { id } = req.params;
+    const assignment = await assignmentsRepo.findById(id);
+    res.json(assignment);
+  } catch (error) {
+    next(error);
+  }
+}
+
 async function getMenteeAssignments(req, res, next) {
   try {
     const user = await usersRepo.findById(req.user.id);
@@ -89,6 +99,7 @@ async function deleteAssignment(req, res, next) {
 module.exports = {
   createAssignment,
   getAssignments,
+  getAssignmentById,
   getMenteeAssignments,
   updateAssignment,
   deleteAssignment,

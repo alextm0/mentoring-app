@@ -15,7 +15,7 @@ const app = express();
 
 // Global middleware
 app.use(cors({
-  origin: 'https://your-frontend-domain.com', // Replace with your frontend domain
+  origin: 'http://localhost:3000', // Replace with your frontend domain
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
@@ -59,12 +59,12 @@ try {
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Apply rate limiting to API routes only
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/v1')) {
-    return rateLimiter(req, res, next);
-  }
-  next();
-});
+// app.use((req, res, next) => {
+//   if (req.path.startsWith('/api/v1')) {
+//     return rateLimiter(req, res, next);
+//   }
+//   next();
+// });
 
 // Main API routes
 app.use(routes);

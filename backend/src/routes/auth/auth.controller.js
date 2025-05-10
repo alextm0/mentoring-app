@@ -57,6 +57,7 @@ async function signup(req, res, next) {
 
 async function login(req, res, next) {
   try {
+    console.log('Login request received:', req.body);
     const validated = loginSchema.parse(req.body);
 
     const user = await usersRepo.findByEmail(validated.email);

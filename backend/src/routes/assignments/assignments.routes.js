@@ -2,6 +2,7 @@ const express = require('express');
 const {
   createAssignment,
   getAssignments,
+  getAssignmentById,
   getMenteeAssignments,
   updateAssignment,
   deleteAssignment,
@@ -15,6 +16,7 @@ router.use(auth);
 
 router.post('/', checkRole(['MENTOR']), createAssignment);
 router.get('/', checkRole(['MENTOR']), getAssignments);
+router.get('/:id', checkRole(['MENTOR']), getAssignmentById);
 router.put('/:id', checkRole(['MENTOR']), updateAssignment);
 router.delete('/:id', checkRole(['MENTOR']), deleteAssignment);
 

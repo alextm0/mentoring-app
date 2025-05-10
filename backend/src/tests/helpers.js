@@ -37,7 +37,16 @@ function createTestToken(user) {
   );
 }
 
+async function clearDb() {
+  await db.delete(comments);
+  await db.delete(submissions);
+  await db.delete(resources);
+  await db.delete(assignments);
+  await db.delete(users);
+}
+
 module.exports = {
   createTestUser,
-  createTestToken
+  createTestToken,
+  clearDb
 }; 

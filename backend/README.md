@@ -20,7 +20,7 @@ Built with Node.js, Express, and PostgreSQL.
 - **Signup & Login** via JWT  
 - Roles: **MENTOR** & **MENTEE**  
 - Mentors can attach/detach mentees  
-- Mentees can view their mentor’s details
+- Mentees can view their mentor's details
 
 ### 2. Assignments
 - Mentors: create, update, delete assignments  
@@ -29,7 +29,7 @@ Built with Node.js, Express, and PostgreSQL.
 
 ### 3. Resources
 - Mentors: create, update, delete resources (optional assignment link)  
-- Mentees: view their mentor’s resources  
+- Mentees: view their mentor's resources  
 - Pagination support for lists
 
 ### 4. Submissions
@@ -53,6 +53,48 @@ Built with Node.js, Express, and PostgreSQL.
 
 ### 8. Documentation
 - Swagger UI available at **`/api-docs`**
+
+---
+
+## API Endpoints
+
+### Authentication
+- `POST /api/v1/auth/login` - User login
+- `POST /api/v1/auth/signup` - User registration
+
+### Users
+- `GET /api/v1/users/me` - Get current user profile
+- `GET /api/v1/users/mentees` - Get mentor's mentees (MENTOR only)
+- `GET /api/v1/users/mentor` - Get mentee's mentor (MENTEE only)
+
+### Assignments
+- `POST /api/v1/assignments` - Create assignment (MENTOR only)
+- `GET /api/v1/assignments` - List assignments (MENTOR only)
+- `GET /api/v1/assignments/mine` - List mentee's assignments (MENTEE only)
+- `PUT /api/v1/assignments/:id` - Update assignment (MENTOR only)
+- `DELETE /api/v1/assignments/:id` - Delete assignment (MENTOR only)
+
+### Resources
+- `POST /api/v1/resources` - Create resource (MENTOR only)
+- `GET /api/v1/resources` - List resources (MENTOR only)
+- `GET /api/v1/resources/mine` - List mentee's resources (MENTEE only)
+- `GET /api/v1/resources/:id` - Get resource details
+- `PUT /api/v1/resources/:id` - Update resource (MENTOR only)
+- `DELETE /api/v1/resources/:id` - Delete resource (MENTOR only)
+
+### Submissions
+- `POST /api/v1/submissions` - Submit work (MENTEE only)
+- `GET /api/v1/submissions/mine` - List mentee's submissions (MENTEE only)
+- `GET /api/v1/submissions/assignment/:id` - List assignment submissions (MENTOR only)
+- `PUT /api/v1/submissions/:id/toggle` - Toggle submission completion (MENTOR only)
+
+### Comments
+- `POST /api/v1/comments` - Add comment to submission (MENTOR only)
+- `GET /api/v1/comments/:submissionId` - Get submission comments
+
+### System
+- `GET /api/v1/health` - Check system health
+- `GET /api-docs` - API documentation (Swagger UI)
 
 ---
 
