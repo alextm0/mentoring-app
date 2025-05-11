@@ -128,7 +128,7 @@ export default function ResourcesPage() {
                     </div>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground flex-1">{resource.description}</p>
+                {/* <p className="text-sm text-muted-foreground flex-1">{resource.description}</p> */}
                 <div className="mt-4">
                   <a
                     href={resource.url}

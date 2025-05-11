@@ -28,7 +28,7 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
       try {
         const data = await getSubmissionById(params.id)
         setSubmission(data)
-        setContent(data.content)
+        setContent(data.snippet)
       } catch (error) {
         toast({
           variant: "destructive",
@@ -45,9 +45,18 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
 
   const handleUpdate = async () => {
     try {
+      // export type Submission = {
+      //   id: string;
+      //   assignment_id: string;
+      //   mentee_id: string;
+      //   snippet: string;
+      //   completed: boolean;
+      //   created_at: string;
+      // };
+
       const updated = await updateSubmission(params.id, {
         ...submission,
-        content
+        
       })
       setSubmission(updated)
       setIsEditing(false)
@@ -87,7 +96,7 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
       const comment = await createComment({
         submission_id: params.id,
         mentor_id: user.id,
-        line_number: selectedLine,
+        line_number: selectedLine ?? undefined,
         comment: newComment
       })
       
@@ -127,7 +136,7 @@ export default function SubmissionDetailPage({ params }: { params: { id: string 
             />
           </div>
         ) : (
-          <div className="whitespace-pre-wrap">{submission.content}</div>
+          <div className="whitespace-pre-wrap">{submission.snippet}</div>
         )}
       </CardContent>
       <CardFooter className="flex justify-end gap-2">

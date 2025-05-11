@@ -2,17 +2,19 @@
 
 import { DashboardNav } from "@/components/dashboard-nav"
 import { DashboardHeader } from "@/components/dashboard-header"
+import { Sidebar } from "@/components/dashboard/Sidebar"
 
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
+
   return (
     <div className="flex min-h-screen flex-col">
-      <DashboardHeader />
+      {/* <DashboardHeader /> */}
       <div className="flex flex-1">
-        <DashboardNav />
+        <Sidebar />
         <main className="flex-1 overflow-y-auto bg-muted/40 p-6">{children}</main>
       </div>
     </div>

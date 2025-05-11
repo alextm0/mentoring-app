@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useRouter, useParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -9,58 +9,81 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/components/ui/use-toast"
 import { getAssignmentById, updateAssignment, deleteAssignment } from "@/lib/actions/assignments"
-import type { Assignment } from "@/types"
+import { getCurrentUser } from "@/lib/actions/users"
+import type { Assignment, User } from "@/types"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
+import Link from "next/link"
 
 export default function AssignmentDetailPage() {
   const [assignment, setAssignment] = useState<Assignment | null>(null)
+  const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [title, setTitle] = useState("")
   const [description, setDescription] = useState("")
-  const [dueDate, setDueDate] = useState("")
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
   const params = useParams<{ id: string }>();
 
-  useEffect(() => {
-    const loadAssignment = async () => {
-      try {
-        const data = await getAssignmentById(params.id)
-        setAssignment(data)
-        setTitle(data.title)
-        setDescription(data.description || "")
-      } catch (error) {
-        toast({
-          variant: "destructive",
-          title: "Error",
-          description: "Failed to load assignment"
-        })
-        router.push("/dashboard/assignments")
-      } finally {
-        setIsLoading(false)
-      }
+  const loadData = async () => {
+    try {
+      // Get user first
+      const userData = await getCurrentUser()
+      setUser(userData)
+      
+      // Then load assignment
+      const data = await getAssignmentById(params.id)
+      setAssignment(data)
+      setTitle(data.title)
+      setDescription(data.description || "")
+    } catch (error) {
+      console.error("Failed to load assignment:", error)
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to load assignment details"
+      })
+      router.push("/dashboard/assignments")
+    } finally {
+      setIsLoading(false)
     }
-    loadAssignment()
+  }
+
+  useEffect(() => {
+    loadData()
   }, [params.id])
 
   const handleUpdate = async () => {
-    try {
-      if (!assignment) return
+    if (!assignment) return
 
-      const updated = await updateAssignment(params.id, {
+    try {
+      const updatedAssignment = await updateAssignment(params.id, {
         ...assignment,
         title,
-        description,
+        description
       })
-      setAssignment(updated)
+      
+      setAssignment(updatedAssignment)
       setIsEditing(false)
+      
       toast({
         title: "Success",
         description: "Assignment updated successfully"
       })
     } catch (error) {
+      console.error("Failed to update assignment:", error)
       toast({
         variant: "destructive",
         title: "Error",
@@ -78,11 +101,14 @@ export default function AssignmentDetailPage() {
       })
       router.push("/dashboard/assignments")
     } catch (error) {
+      console.error("Failed to delete assignment:", error)
       toast({
         variant: "destructive",
         title: "Error",
         description: "Failed to delete assignment"
       })
+    } finally {
+      setDeleteDialogOpen(false)
     }
   }
 
@@ -101,6 +127,8 @@ export default function AssignmentDetailPage() {
       </div>
     )
   }
+
+  const canEdit = user?.role === "MENTOR" && user.id === assignment.mentor_id
 
   return (
     <div className="space-y-6">
@@ -126,6 +154,7 @@ export default function AssignmentDetailPage() {
                   id="title"
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
+                  required
                 />
               </div>
               <div>
@@ -137,29 +166,21 @@ export default function AssignmentDetailPage() {
                   rows={5}
                 />
               </div>
-              <div>
-                <Label htmlFor="dueDate">Due Date</Label>
-                <Input
-                  id="dueDate"
-                  type="date"
-                  value={dueDate}
-                  onChange={(e) => setDueDate(e.target.value)}
-                />
-              </div>
             </div>
           ) : (
             <div className="space-y-4">
               <div>
-                <Label>Description</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {assignment.description}
+                <p className="text-sm text-muted-foreground">
+                  Created by: {assignment.mentor_id}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  Created on: {format(new Date(assignment.created_at), 'PPP')}
                 </p>
               </div>
-
               <div>
-                <Label>Status</Label>
-                <p className="text-sm text-muted-foreground mt-1">
-                  PENDING
+                <Label>Description</Label>
+                <p className="text-sm mt-1">
+                  {assignment.description || "No description provided."}
                 </p>
               </div>
             </div>
@@ -175,16 +196,49 @@ export default function AssignmentDetailPage() {
             </>
           ) : (
             <>
-              <Button variant="outline" onClick={() => setIsEditing(true)}>
-                Edit
-              </Button>
-              <Button variant="destructive" onClick={handleDelete}>
-                Delete
-              </Button>
+              {canEdit && (
+                <>
+                  <Button variant="outline" onClick={() => setIsEditing(true)}>
+                    Edit
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    Delete
+                  </Button>
+                </>
+              )}
+              {user?.role === "MENTEE" && (
+                <Link href={`/dashboard/submissions/create?assignmentId=${assignment.id}`}>
+                  <Button>Submit Assignment</Button>
+                </Link>
+              )}
             </>
           )}
         </CardFooter>
       </Card>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Assignment</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the assignment
+              and all associated submissions.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

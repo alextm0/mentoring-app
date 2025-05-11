@@ -102,9 +102,32 @@ async function toggleCompleted(req, res, next) {
   }
 }
 
+async function getAllMenteeSubmissions(req, res, next) {
+  try {
+    // Only mentors can access this endpoint
+    if (req.user.role !== 'MENTOR') {
+      return next({ status: 403, message: 'Access denied' });
+    }
+
+    const submissionList = await submissionsRepo.findAllByMentorId(req.user.id);
+    res.json(submissionList.map(submission => ({
+      id: submission.id,
+      assignment_id: submission.assignment_id,
+      mentee_id: submission.mentee_id,
+      snippet: submission.snippet,
+      completed: submission.completed,
+      created_at: submission.created_at,
+    })));
+  } catch (error) {
+    logger.error('Get all mentee submissions error:', error);
+    next(error);
+  }
+}
+
 module.exports = {
   createSubmission,
   getMenteeSubmissions,
   getAssignmentSubmissions,
   toggleCompleted,
+  getAllMenteeSubmissions,
 };

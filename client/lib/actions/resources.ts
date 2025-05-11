@@ -9,108 +9,204 @@ export async function getResources(): Promise<Resource[]> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
 
-  const res = await fetch(`${API_URL}/resources`, {
-    credentials: 'include',
-    headers: {
-      'Authorization': `Bearer ${token?.value}`,
-    },
-    cache: 'no-store',
-  });
+  try {
+    const res = await fetch(`${API_URL}/resources`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      cache: 'no-store',
+    });
 
-  const data = await res.json();  
-  
-  if (!res.ok) throw new Error(`Failed to fetch resources: ${res.status}`);
-  return data;
+    if (!res.ok) {
+      throw new Error(`Failed to fetch resources: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching resources:', error);
+    throw error;
+  }
 }
 
-export async function getMenteeResources(): Promise<Resource[]> {
+export async function getResourceById(id: string): Promise<Resource> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
 
-  const res = await fetch(`${API_URL}/resources/mine`, {
-    credentials: 'include',
-    headers: {
-      'Authorization': `Bearer ${token?.value}`,
-    },
-    cache: 'no-store',
-  });
+  try {
+    const res = await fetch(`${API_URL}/resources/${id}`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      cache: 'no-store',
+    });
 
-  const data = await res.json();
-  
-  if (!res.ok) throw new Error(`Failed to fetch mentee resources: ${res.status}`);
-  return data;
+    if (!res.ok) {
+      throw new Error(`Failed to fetch resource: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching resource ${id}:`, error);
+    throw error;
+  }
 }
 
-export async function getResource(id: string): Promise<Resource> {
+export async function getResourcesByAssignmentId(assignmentId: string): Promise<Resource[]> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
 
-  const res = await fetch(`${API_URL}/resources/${id}`, {
-    credentials: 'include',
-    headers: {
-      'Authorization': `Bearer ${token?.value}`,
-    },
-    cache: 'no-store',
-  });
+  try {
+    const res = await fetch(`${API_URL}/resources/assignment/${assignmentId}`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      cache: 'no-store',
+    });
 
-  const data = await res.json();
-  
-  if (!res.ok) throw new Error(`Failed to fetch resource: ${res.status}`);
-  return data;
+    if (!res.ok) {
+      throw new Error(`Failed to fetch assignment resources: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error(`Error fetching resources for assignment ${assignmentId}:`, error);
+    throw error;
+  }
 }
 
-export async function createResource(data: Partial<Resource>): Promise<Resource> {
+export async function getGeneralResources(): Promise<Resource[]> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
 
-  const res = await fetch(`${API_URL}/resources`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token?.value}`,
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
+  try {
+    const res = await fetch(`${API_URL}/resources/general`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      cache: 'no-store',
+    });
 
-  const responseData = await res.json();
-  
-  if (!res.ok) throw new Error(`Failed to create resource: ${res.status}`);
-  return responseData;
-} 
+    if (!res.ok) {
+      throw new Error(`Failed to fetch general resources: ${res.status}`);
+    }
 
-export async function updateResource(id: string, data: Partial<Resource>): Promise<Resource> {
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching general resources:', error);
+    throw error;
+  }
+}
+
+export async function createResource(resource: Partial<Resource>): Promise<Resource> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
 
-  const res = await fetch(`${API_URL}/resources/${id}`, {
-    method: 'PUT',
-    headers: {
-      'Authorization': `Bearer ${token?.value}`,
-      'Content-Type': 'application/json',
-    },
-    credentials: 'include',
-    body: JSON.stringify(data),
-  });
+  try {
+    const res = await fetch(`${API_URL}/resources`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      body: JSON.stringify(resource),
+    });
 
-  const responseData = await res.json(); 
-  
-  if (!res.ok) throw new Error(`Failed to update resource: ${res.status}`);
-  return responseData;
+    if (!res.ok) {
+      throw new Error(`Failed to create resource: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error creating resource:', error);
+    throw error;
+  }
+}
+
+export async function updateResource(id: string, resource: Partial<Resource>): Promise<Resource> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token');
+
+  try {
+    const res = await fetch(`${API_URL}/resources/${id}`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      body: JSON.stringify(resource),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to update resource: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error(`Error updating resource ${id}:`, error);
+    throw error;
+  }
 }
 
 export async function deleteResource(id: string): Promise<void> {
-  const cookieStore = await cookies(); 
+  const cookieStore = await cookies();
   const token = cookieStore.get('token');
 
-  const res = await fetch(`${API_URL}/resources/${id}`, {
-    method: 'DELETE',
-    headers: {
-      'Authorization': `Bearer ${token?.value}`,
-    },
-    credentials: 'include',
-  });
+  try {
+    const res = await fetch(`${API_URL}/resources/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+      },
+    });
 
-  if (!res.ok) throw new Error(`Failed to delete resource: ${res.status}`);
-  return;
+    if (!res.ok) {
+      throw new Error(`Failed to delete resource: ${res.status}`);
+    }
+  } catch (error) {
+    console.error(`Error deleting resource ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function assignResourceToAssignment(
+  resourceId: string, 
+  assignmentId: string
+): Promise<Resource> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token');
+
+  try {
+    const res = await fetch(`${API_URL}/resources/${resourceId}/assign`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      body: JSON.stringify({ assignment_id: assignmentId }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to assign resource to assignment: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error(`Error assigning resource ${resourceId} to assignment ${assignmentId}:`, error);
+    throw error;
+  }
 }

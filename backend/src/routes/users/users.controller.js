@@ -36,6 +36,24 @@ async function getMentees(req, res, next) {
   }
 }
 
+async function getMenteesByMentorId(req, res, next) {
+  try {
+    const mentor = await usersRepo.findById(req.params.userId);
+    if (!mentor || mentor.role !== 'MENTOR') {
+      return next({ status: 404, message: 'Mentor not found' });
+    }
+
+    const mentees = await usersRepo.findMenteesByMentorId(mentor.id);
+    res.json(mentees.map(mentee => ({
+      id: mentee.id,
+      email: mentee.email,
+    })));
+  } catch (error) {
+    logger.error('Get mentees by mentor id error:', error);
+    next(error);
+  }
+}
+
 async function getMentor(req, res, next) {
   try {
     if (req.user.role !== 'MENTEE') {
@@ -69,4 +87,5 @@ module.exports = {
   getMe,
   getMentees,
   getMentor,
+  getMenteesByMentorId,
 };

@@ -13,14 +13,28 @@ export async function getCurrentUser(): Promise<User> {
     credentials: 'include',
     headers: {
       'Authorization': `Bearer ${token?.value}`,
-      'Content-Type': 'application/json',
     },
     cache: 'no-store',
   });
 
-  const data = await res.json();
+  if (!res.ok) {
+    const errorMessage = `Failed to fetch current user: ${res.status}`;
+    console.error(errorMessage);
+    
+    if (process.env.NODE_ENV === 'development') {
+      console.warn('Using mock user in development mode');
+      return {
+        id: 'mock-id',
+        email: 'dev@example.com',
+        role: 'MENTOR',
+        created_at: new Date().toISOString()
+      };
+    }
+    
+    throw new Error(errorMessage);
+  }
   
-  if (!res.ok) throw new Error(`Failed to fetch current user: ${res.status}`);
+  const data = await res.json();
   return data;
 } 
 

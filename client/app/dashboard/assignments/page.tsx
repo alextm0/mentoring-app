@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Plus, Pencil, Trash, Calendar } from "lucide-react"
+import { Plus, Pencil, Trash } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
 import { getAssignments, getMenteeAssignments, deleteAssignment } from "@/lib/actions/assignments"
 import { getCurrentUser } from "@/lib/actions/users"
@@ -20,7 +20,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
 import { format } from "date-fns"
-import { Badge } from "@/components/ui/badge"
 
 export default function AssignmentsPage() {
   const { toast } = useToast()
@@ -32,19 +31,24 @@ export default function AssignmentsPage() {
 
   const loadData = async () => {
     try {
+      // Get user first
       const userData = await getCurrentUser()
       setUser(userData)
       
-      const data = userData.role === "MENTOR" 
-        ? await getAssignments()
-        : await getMenteeAssignments()
-      
-      setAssignments(data)
+      // Then fetch assignments based on role
+      if (userData.role === "MENTOR") {
+        const data = await getAssignments()
+        setAssignments(data)
+      } else {
+        const data = await getMenteeAssignments()
+        setAssignments(data)
+      }
     } catch (error) {
+      console.error("Failed to load assignments:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to load assignments"
+        description: "Failed to load assignments. Please try again."
       })
     } finally {
       setIsLoading(false)
@@ -64,10 +68,11 @@ export default function AssignmentsPage() {
         description: "Assignment deleted successfully"
       })
     } catch (error) {
+      console.error("Failed to delete assignment:", error)
       toast({
         variant: "destructive",
         title: "Error",
-        description: "Failed to delete assignment"
+        description: "Failed to delete assignment. Please try again."
       })
     } finally {
       setDeleteDialogOpen(false)
@@ -111,6 +116,9 @@ export default function AssignmentsPage() {
                 <div className="flex justify-between items-start mb-4">
                   <div className="space-y-1 flex-1">
                     <h3 className="font-semibold truncate">{assignment.title}</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Created: {format(new Date(assignment.created_at), 'PPP')}
+                    </p>
                   </div>
                   {user?.role === "MENTOR" && (
                     <div className="flex gap-2 ml-4">
@@ -133,14 +141,11 @@ export default function AssignmentsPage() {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground line-clamp-2 flex-1">
-                  {assignment.description}
+                  {assignment.description || "No description provided."}
                 </p>
-                <div className="mt-4 flex items-center justify-between">
-                  <Badge variant="default">
-                    PENDING
-                  </Badge>
+                <div className="mt-4">
                   <Link href={`/dashboard/assignments/${assignment.id}`}>
-                    <Button variant="link" className="text-sm">
+                    <Button variant="link" className="text-sm p-0 h-auto">
                       View Details →
                     </Button>
                   </Link>

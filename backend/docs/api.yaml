@@ -1038,6 +1038,28 @@ paths:
                 $ref: '#/components/schemas/Error'
 
   /submissions:
+    get:
+      tags:
+        - Submissions
+      summary: List all submissions for a mentor
+      description: Returns a list of all submissions from all assignments created by the authenticated mentor.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of submissions retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Submission'
+        '403':
+          description: Access denied (not a mentor)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
     post:
       tags:
         - Submissions

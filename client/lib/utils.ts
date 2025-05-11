@@ -13,3 +13,7 @@ export function formatDate(dateString: string): string {
     day: "numeric",
   }).format(date)
 }
+
+export function getInitials(name: string): string {
+  return name.split(' ').map(n => n[0]).join('')
+}

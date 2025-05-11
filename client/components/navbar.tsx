@@ -60,14 +60,14 @@ export function Navbar() {
 
           <div className="flex items-center space-x-4">
             <Link
-              href="/login"
+              href="/auth/login"
               className="rounded-md px-4 py-2 text-slate-200 transition-all hover:text-emerald-400"
               aria-label="Log in to your account"
             >
               Log in
             </Link>
             <Link
-              href="/signup"
+              href="/auth/signup"
               className="group relative overflow-hidden rounded-md bg-gradient-to-tr from-emerald-400 to-emerald-500 px-4 py-2 text-black shadow-lg transition-all duration-200 hover:scale-105 active:scale-95"
               aria-label="Sign up for an account"
             >

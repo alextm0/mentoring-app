@@ -38,6 +38,9 @@ async function getAssignmentById(req, res, next) {
   try {
     const { id } = req.params;
     const assignment = await assignmentsRepo.findById(id);
+    if (!assignment || assignment.mentor_id !== req.user.id) {
+      return next({ status: 404, message: 'Assignment not found or unauthorized' });
+    }
     res.json(assignment);
   } catch (error) {
     next(error);

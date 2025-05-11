@@ -7,7 +7,8 @@ import type { Assignment, Resource, Submission, User } from '@/types';
 import { getCurrentUser } from '@/lib/actions/users';
 import { getAssignments, getMenteeAssignments } from '@/lib/actions/assignments';
 import { getResources, getMenteeResources } from '@/lib/actions/resources';
-import { getSubmissions } from '@/lib/actions/submissions';
+import { getMenteeSubmissions, getSubmissions } from '@/lib/actions/submissions';
+import { AssignmentCard } from '@/components/dashboard/AssignmentCard';
 
 export default function DashboardPage() {
   const { toast } = useToast()
@@ -29,7 +30,7 @@ export default function DashboardPage() {
           const [assignmentsData, resourcesData, submissionsData] = await Promise.all([
             userData.role === 'MENTOR' ? getAssignments() : getMenteeAssignments(),
             userData.role === 'MENTOR' ? getResources() : getMenteeResources(),
-            userData.role === 'MENTEE' ? getSubmissions() : Promise.resolve([])
+            userData.role === 'MENTOR' ? getSubmissions() : getMenteeSubmissions()
           ]);
 
           setAssignments(assignmentsData);
@@ -81,15 +82,14 @@ export default function DashboardPage() {
           ) : (
             <ul className="space-y-4">
               {assignments.map((a) => (
-                <li key={a.id} className="border-b pb-4">
-                  <h3 className="font-medium">{a.title}</h3>
-                  <p className="text-sm text-muted-foreground">{a.description}</p>
-                  {a.due_date && (
-                    <p className="text-xs text-muted-foreground">
-                      Due: {format(new Date(a.due_date), 'PPP')}
-                    </p>
-                  )}
-                </li>
+                <AssignmentCard
+                  key={a.id}
+                  title={a.title}
+                  description={a.description || ''}
+                  dueDate={a.created_at}
+                  submissions={0}
+                  totalMentees={0}
+                />
               ))}
             </ul>
           )}
@@ -99,11 +99,10 @@ export default function DashboardPage() {
           {resources.length === 0 ? (
             <Empty>No resources found</Empty>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-4 text-black">
               {resources.map((r) => (
                 <li key={r.id} className="border-b pb-4">
                   <h3 className="font-medium">{r.title}</h3>
-                  <p className="text-sm text-muted-foreground">{r.description}</p>
                   <a
                     href={r.url}
                     target="_blank"
@@ -117,37 +116,6 @@ export default function DashboardPage() {
             </ul>
           )}
         </Card>
-
-        {user.role === 'MENTEE' && (
-          <Card title="My Submissions" fullWidth>
-            {submissions.length === 0 ? (
-              <Empty>No submissions found</Empty>
-            ) : (
-              <ul className="space-y-4">
-                {submissions.map((s) => (
-                  <li key={s.id} className="border-b pb-4">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">
-                          Submission for Assignment {s.assignment_id}
-                        </h3>
-                        <p className="text-sm text-muted-foreground">
-                          Status: {s.completed ? 'Completed' : 'Pending'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Submitted: {format(new Date(s.created_at), 'PPP')}
-                        </p>
-                      </div>
-                      <pre className="text-sm bg-muted p-2 rounded overflow-x-auto max-w-md ml-4">
-                        {s.code}
-                      </pre>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Card>
-        )}
       </div>
     </div>
   );

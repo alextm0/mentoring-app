@@ -1,5 +1,5 @@
 const express = require('express');
-const { getMe, getMentees, getMentor } = require('../users/users.controller');
+const { getMe, getMentees, getMentor, getMenteesByMentorId } = require('../users/users.controller');
 const { attachMentee, detachMentee } = require('../mentors/mentors.controller');
 const auth = require('../../middleware/auth');
 const checkRole = require('../../middleware/rbac');
@@ -13,6 +13,7 @@ router.get('/me', getMe);
 router.get('/mentees', checkRole(['MENTOR']), getMentees);
 router.get('/mentor', checkRole(['MENTEE']), getMentor);
 
+router.get('/:userId/mentees', checkRole(['MENTOR']), checkOwnership, getMenteesByMentorId);
 router.post('/:userId/mentees', checkRole(['MENTOR']), checkOwnership, attachMentee);
 router.delete('/:userId/mentees/:menteeId', checkRole(['MENTOR']), checkOwnership, detachMentee);
 

@@ -16,10 +16,9 @@ router.use(auth);
 
 router.post('/', checkRole(['MENTOR']), createAssignment);
 router.get('/', checkRole(['MENTOR']), getAssignments);
+router.get('/mine', checkRole(['MENTEE']), getMenteeAssignments);
 router.get('/:id', checkRole(['MENTOR']), getAssignmentById);
 router.put('/:id', checkRole(['MENTOR']), updateAssignment);
 router.delete('/:id', checkRole(['MENTOR']), deleteAssignment);
-
-router.get('/mine', checkRole(['MENTEE']), getMenteeAssignments);
 
 module.exports = router;

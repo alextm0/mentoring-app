@@ -45,6 +45,44 @@ describe('Submissions API', () => {
     await new Promise(resolve => setTimeout(resolve, 500));
   });
 
+  describe('GET /api/v1/submissions', () => {
+    it('should list all submissions for a mentor', async () => {
+      const res = await request(app)
+        .get('/api/v1/submissions')
+        .set('Authorization', `Bearer ${mentorToken}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+      expect(res.body[0]).toHaveProperty('assignment_id');
+      expect(res.body[0]).toHaveProperty('mentee_id');
+      expect(res.body[0]).toHaveProperty('snippet');
+      expect(res.body[0]).toHaveProperty('completed');
+    });
+
+    it('should reject listing all submissions for a mentee', async () => {
+      const res = await request(app)
+        .get('/api/v1/submissions')
+        .set('Authorization', `Bearer ${menteeToken}`);
+
+      expect(res.status).toBe(403);
+    });
+
+    it('should return empty array for mentor with no submissions', async () => {
+      // Create a new mentor with no assignments/submissions
+      const otherMentor = await createTestUser('other-mentor@test.com', 'MENTOR');
+      const otherMentorToken = createTestToken(otherMentor);
+
+      const res = await request(app)
+        .get('/api/v1/submissions')
+        .set('Authorization', `Bearer ${otherMentorToken}`);
+
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBe(0);
+    });
+  });
+
   describe('POST /api/v1/submissions', () => {
     it('should create submission as mentee', async () => {
       const res = await request(app)
