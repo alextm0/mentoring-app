@@ -55,6 +55,9 @@ export async function getResourceById(id: string): Promise<Resource> {
   }
 }
 
+// Alias for getResourceById to maintain compatibility with current code
+export const getResource = getResourceById;
+
 export async function getResourcesByAssignmentId(assignmentId: string): Promise<Resource[]> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
@@ -207,6 +210,38 @@ export async function assignResourceToAssignment(
     return data;
   } catch (error) {
     console.error(`Error assigning resource ${resourceId} to assignment ${assignmentId}:`, error);
+    throw error;
+  }
+}
+
+export async function getMenteeResources(assignmentId?: string): Promise<Resource[]> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token');
+
+  try {
+    // Construct URL with optional assignment_id query parameter
+    let url = `${API_URL}/resources/mine`;
+    if (assignmentId) {
+      url += `?assignment_id=${assignmentId}`;
+    }
+
+    const res = await fetch(url, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+        'Content-Type': 'application/json',
+      },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch mentee resources: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data;
+  } catch (error) {
+    console.error('Error fetching mentee resources:', error);
     throw error;
   }
 }

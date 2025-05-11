@@ -27,7 +27,12 @@ const auth = (req, res, next) => {
   // 4) Verify signature & expiration
   try {
     const decoded = jwt.verify(token, env.JWT_SECRET);
-    req.user = { id: decoded.id, role: decoded.role };
+    // Include email if it exists in the token
+    req.user = { 
+      id: decoded.id, 
+      role: decoded.role,
+      email: decoded.email || null
+    };
     return next();
   } catch (err) {
     logger.error('Authentication error:', err);

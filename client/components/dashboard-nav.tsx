@@ -39,7 +39,16 @@ export function DashboardNav() {
     loadUser();
   }, []);
 
-  const links = user?.role === 'MENTOR' ? mentorLinks : menteeLinks;
+  // Determine links based on user role
+  let links = user?.role === 'MENTOR' ? mentorLinks : menteeLinks;
+
+  // Add monitoring link only for the specific mentor with email alextoma1704@gmail.com
+  if (user?.role === 'MENTOR' && user?.email === 'alextoma1704@gmail.com') {
+    links = [
+      ...mentorLinks,
+      { href: '/dashboard/monitoring', label: 'User Monitoring' }
+    ];
+  }
 
   return (
     <nav className="w-64 bg-gray-50 p-6 border-r">

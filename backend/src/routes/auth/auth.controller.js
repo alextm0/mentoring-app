@@ -59,7 +59,11 @@ async function signup(req, res, next) {
     });
 
     const token = jwt.sign(
-      { id: newUser.id, role: newUser.role },
+      { 
+        id: newUser.id, 
+        role: newUser.role,
+        email: newUser.email 
+      },
       env.JWT_SECRET,
     );
 
@@ -118,7 +122,11 @@ async function login(req, res, next) {
     }
 
     const token = jwt.sign(
-      { id: user.id, role: user.role },
+      { 
+        id: user.id, 
+        role: user.role,
+        email: user.email
+      },
       env.JWT_SECRET,
     );
 

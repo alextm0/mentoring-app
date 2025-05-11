@@ -59,8 +59,23 @@ async function getAssignmentById(req, res, next) {
   try {
     const { id } = req.params;
     const assignment = await assignmentsRepo.findById(id);
-    if (!assignment || assignment.mentor_id !== req.user.id) {
-      return next({ status: 404, message: 'Assignment not found or unauthorized' });
+    
+    if (!assignment) {
+      return next({ status: 404, message: 'Assignment not found' });
+    }
+    
+    // Authorization check based on role
+    if (req.user.role === 'MENTOR') {
+      // Mentors can only view their own assignments
+      if (assignment.mentor_id !== req.user.id) {
+        return next({ status: 403, message: 'Unauthorized to view this assignment' });
+      }
+    } else if (req.user.role === 'MENTEE') {
+      // Mentees can only view assignments from their assigned mentor
+      const user = await usersRepo.findById(req.user.id);
+      if (!user?.mentor_id || assignment.mentor_id !== user.mentor_id) {
+        return next({ status: 403, message: 'This assignment is not assigned to you' });
+      }
     }
     
     // Log the read action

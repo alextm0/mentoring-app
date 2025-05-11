@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 const bcrypt = require('bcrypt');
-const db = require('../config/database');          // ← adjust path if needed
+const db = require('../src/config/database');          // ← adjust path if needed
 const { sql } = require('drizzle-orm');
 
 // ---- pull the TABLE objects exactly as defined in your schema ------------
@@ -9,7 +9,7 @@ const {
   assignments,
   resources,
   submissions,
-} = require('../models');                          // ← path to the schema!
+} = require('../src/models');                          // ← path to the schema!
 
 // ---- helper ----------------------------------------------------------------
 const addDays = (d) => new Date(Date.now() + d * 86_400_000); // millis in a day

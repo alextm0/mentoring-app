@@ -727,7 +727,7 @@ paths:
       tags:
         - Assignments
       summary: Get assignment by ID
-      description: Returns a single assignment by its ID. Only accessible by the mentor who created it.
+      description: Returns a single assignment by its ID. Mentors can view assignments they created, mentees can view assignments from their assigned mentor.
       security:
         - BearerAuth: []
       parameters:
@@ -1150,7 +1150,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
-  /submissions/{assignmentId}:
+  /submissions/assignment/{assignmentId}:
     get:
       tags:
         - Submissions
@@ -1205,12 +1205,172 @@ paths:
               schema:
                 $ref: '#/components/schemas/Error'
 
+  /submissions/{id}:
+    get:
+      tags:
+        - Submissions
+      summary: Get submission by ID
+      description: Returns a single submission by its ID. Mentees can only view their own submissions, mentors can view submissions for assignments they created.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the submission
+      responses:
+        '200':
+          description: Submission retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      tags:
+        - Submissions
+      summary: Update a submission
+      description: Allows a mentee to update their own submission. Only the snippet field can be updated, and only if the submission is not marked as completed.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the submission
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                snippet:
+                  type: string
+              required:
+                - snippet
+      responses:
+        '200':
+          description: Submission updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '400':
+          description: Validation error or submission already completed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Access denied (not the owner or not a mentee)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    delete:
+      tags:
+        - Submissions
+      summary: Delete a submission
+      description: Allows a mentee to delete their own submission or a mentor to delete a submission for an assignment they created.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the submission
+      responses:
+        '204':
+          description: Submission deleted successfully
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions/{id}/with-comments:
+    get:
+      tags:
+        - Submissions
+      summary: Get submission with comments
+      description: Returns a submission with all its associated comments. Mentees can only view their own submissions, mentors can view submissions for assignments they created.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the submission
+      responses:
+        '200':
+          description: Submission with comments retrieved successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Submission'
+                  - type: object
+                    properties:
+                      comments:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Comment'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
   /submissions/{id}/complete:
     patch:
       tags:
         - Submissions
       summary: Toggle submission completion status
-      description: Allows a mentor to toggle the completion status of a submission.
+      description: Allows a mentee to mark their own submission as complete, or a mentor to toggle completion status of a submission for an assignment they created.
       security:
         - BearerAuth: []
       parameters:
@@ -1360,6 +1520,42 @@ paths:
                 $ref: '#/components/schemas/Error'
         '404':
           description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /submissions/assignment/{assignmentId}/mine:
+    get:
+      tags:
+        - Submissions
+      summary: Get mentee's own submission for a specific assignment
+      description: Returns a mentee's submission for the specified assignment. Only accessible by the mentee who made the submission.
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: path
+          name: assignmentId
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: The ID of the assignment
+      responses:
+        '200':
+          description: Submission retrieved successfully (or null if no submission exists)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Submission'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Assignment not found
           content:
             application/json:
               schema:

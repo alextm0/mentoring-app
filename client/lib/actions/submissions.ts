@@ -190,11 +190,13 @@ export async function markSubmissionAsComplete(id: string): Promise<Submission> 
 
   try {
     const res = await fetch(`${API_URL}/submissions/${id}/complete`, {
-      method: 'PUT',
+      method: 'PATCH',
       credentials: 'include',
       headers: {
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${token?.value}`,
       },
+      body: JSON.stringify({ completed: true }),
     });
 
     if (!res.ok) {
@@ -227,6 +229,31 @@ export async function deleteSubmission(id: string): Promise<void> {
     }
   } catch (error) {
     console.error(`Error deleting submission ${id}:`, error);
+    throw error;
+  }
+}
+
+export async function getMenteeSubmissionForAssignment(assignmentId: string): Promise<Submission | null> {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token');
+
+  try {
+    const res = await fetch(`${API_URL}/submissions/assignment/${assignmentId}/mine`, {
+      credentials: 'include',
+      headers: {
+        'Authorization': `Bearer ${token?.value}`,
+      },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to fetch submission for assignment: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data; // Will be null if no submission exists
+  } catch (error) {
+    console.error(`Error fetching submission for assignment ${assignmentId}:`, error);
     throw error;
   }
 }

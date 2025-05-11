@@ -1,4 +1,5 @@
 const { monitoredUsersRepo } = require('../../repos');
+const { usersRepo } = require('../../repos');
 const logger = require('../../utils/logger');
 const { z } = require('zod');
 
@@ -7,13 +8,49 @@ const resolveMonitoredUserSchema = z.object({
 });
 
 /**
+ * Check if user is authorized to access monitored users
+ * Allow admin or specific mentor (alextoma1704@gmail.com)
+ */
+async function isAuthorizedForMonitoring(user) {
+  // Admin role-based check can be done directly
+  if (user.role === 'ADMIN') {
+    return true;
+  }
+  
+  // For mentor check, first try to use email from the token
+  if (user.role === 'MENTOR') {
+    if (user.email) {
+      // If email is already in the token, use it directly
+      return user.email === 'alextoma1704@gmail.com';
+    }
+    
+    // Fallback: fetch email from the database if not in token
+    try {
+      // Get user details to check email
+      const userDetails = await usersRepo.findById(user.id);
+      if (!userDetails) {
+        logger.error(`User not found: ${user.id}`);
+        return false;
+      }
+      return userDetails.email === 'alextoma1704@gmail.com';
+    } catch (error) {
+      logger.error('Authorization check error:', error);
+      return false; // Fail closed on error
+    }
+  }
+  
+  return false;
+}
+
+/**
  * Get all active monitored users
- * Admin only endpoint
+ * Admin or specific mentor only endpoint
  */
 async function getActiveMonitoredUsers(req, res, next) {
   try {
-    // Only allow admins to access monitored users
-    if (req.user.role !== 'ADMIN') {
+    // Check if user is authorized (admin or specific mentor)
+    const isAuthorized = await isAuthorizedForMonitoring(req.user);
+    if (!isAuthorized) {
       return next({ status: 403, message: 'Access denied' });
     }
 
@@ -27,12 +64,13 @@ async function getActiveMonitoredUsers(req, res, next) {
 
 /**
  * Get all monitored users (including resolved ones)
- * Admin only endpoint
+ * Admin or specific mentor only endpoint
  */
 async function getAllMonitoredUsers(req, res, next) {
   try {
-    // Only allow admins to access monitored users
-    if (req.user.role !== 'ADMIN') {
+    // Check if user is authorized (admin or specific mentor)
+    const isAuthorized = await isAuthorizedForMonitoring(req.user);
+    if (!isAuthorized) {
       return next({ status: 403, message: 'Access denied' });
     }
 
@@ -46,12 +84,13 @@ async function getAllMonitoredUsers(req, res, next) {
 
 /**
  * Get monitored user by ID
- * Admin only endpoint
+ * Admin or specific mentor only endpoint
  */
 async function getMonitoredUserById(req, res, next) {
   try {
-    // Only allow admins to access monitored users
-    if (req.user.role !== 'ADMIN') {
+    // Check if user is authorized (admin or specific mentor)
+    const isAuthorized = await isAuthorizedForMonitoring(req.user);
+    if (!isAuthorized) {
       return next({ status: 403, message: 'Access denied' });
     }
 
@@ -71,12 +110,13 @@ async function getMonitoredUserById(req, res, next) {
 
 /**
  * Resolve a monitored user (mark as inactive)
- * Admin only endpoint
+ * Admin or specific mentor only endpoint
  */
 async function resolveMonitoredUser(req, res, next) {
   try {
-    // Only allow admins to resolve monitored users
-    if (req.user.role !== 'ADMIN') {
+    // Check if user is authorized (admin or specific mentor)
+    const isAuthorized = await isAuthorizedForMonitoring(req.user);
+    if (!isAuthorized) {
       return next({ status: 403, message: 'Access denied' });
     }
 

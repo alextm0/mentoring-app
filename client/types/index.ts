@@ -30,6 +30,8 @@ export type Submission = {
   snippet: string;
   completed: boolean;
   created_at: string;
+  assignment_title?: string;
+  comments?: Comment[];
 };
 
 export type Comment = {

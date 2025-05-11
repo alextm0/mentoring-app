@@ -107,9 +107,6 @@ export async function getAssignmentById(id: string): Promise<Assignment> {
   const cookieStore = await cookies();
   const token = cookieStore.get('token');
   
-  // Log the token and ID for debugging
-  console.log(`Fetching assignment: ${id}, Token exists: ${!!token?.value}`);
-
   try {
     const res = await fetch(`${API_URL}/assignments/${id}`, {
       credentials: 'include',

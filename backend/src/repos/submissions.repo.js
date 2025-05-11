@@ -8,6 +8,7 @@ const findById = async (id) => {
     .from(submissions)
     .where(eq(submissions.id, id))
     .limit(1)
+    .execute()
     .then(rows => rows[0]);
 };
 
@@ -19,7 +20,22 @@ const findAllByAssignmentId = async (assignmentId) => {
     })
     .from(submissions)
     .innerJoin(users, eq(submissions.mentee_id, users.id))
-    .where(eq(submissions.assignment_id, assignmentId));
+    .where(eq(submissions.assignment_id, assignmentId))
+    .execute();
+};
+
+const findAllByMentorId = async (mentorId) => {
+  return await db
+    .select({
+      ...submissions,
+      mentee_name: users.email,
+      assignment_title: assignments.title,
+    })
+    .from(submissions)
+    .innerJoin(users, eq(submissions.mentee_id, users.id))
+    .innerJoin(assignments, eq(submissions.assignment_id, assignments.id))
+    .where(eq(assignments.mentor_id, mentorId))
+    .execute();
 };
 
 const findAllByMenteeId = async (menteeId) => {
@@ -30,7 +46,8 @@ const findAllByMenteeId = async (menteeId) => {
     })
     .from(submissions)
     .innerJoin(assignments, eq(submissions.assignment_id, assignments.id))
-    .where(eq(submissions.mentee_id, menteeId));
+    .where(eq(submissions.mentee_id, menteeId))
+    .execute();
 };
 
 const findByAssignmentAndMenteeId = async (assignmentId, menteeId) => {
@@ -44,6 +61,7 @@ const findByAssignmentAndMenteeId = async (assignmentId, menteeId) => {
       )
     )
     .limit(1)
+    .execute()
     .then(rows => rows[0]);
 };
 
@@ -55,7 +73,8 @@ const findWithComments = async (id) => {
   const submissionComments = await db
     .select()
     .from(comments)
-    .where(eq(comments.submission_id, id));
+    .where(eq(comments.submission_id, id))
+    .execute();
   
   return {
     ...submission,
@@ -98,6 +117,7 @@ module.exports = {
   findAllByAssignmentId,
   findAllByMenteeId,
   findByAssignmentAndMenteeId,
+  findAllByMentorId,
   findWithComments,
   create,
   update,
