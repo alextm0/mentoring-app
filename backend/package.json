@@ -8,8 +8,12 @@
     "dev": "nodemon src/server.js",
     "db:generate": "drizzle-kit generate:pg --config ./drizzle.config.js",
     "db:push": "node ./migrations/migrate.js",
-    "test": "jest --detectOpenHandles --forceExit",
-    "seed": "node src/scripts/seed.js"
+    "test": "jest",
+    "migrate-logs": "node scripts/run-logs-migration.js",
+    "migrate-monitored-users": "node scripts/run-monitored-users-migration.js",
+    "analyze-activity": "node scripts/run-user-activity-analysis.js",
+    "simulate-activity": "node scripts/simulate-suspicious-activity.js",
+    "check-monitored": "node scripts/check-monitored-users.js"
   },
   "keywords": [],
   "author": "",
@@ -29,7 +33,8 @@
     "pino-pretty": "^10.3.1",
     "swagger-ui-express": "^5.0.1",
     "winston": "^3.17.0",
-    "zod": "^3.22.4"
+    "zod": "^3.22.4",
+    "node-cron": "^3.0.2"
   },
   "devDependencies": {
     "drizzle-kit": "^0.20.18",

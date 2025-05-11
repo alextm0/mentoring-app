@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const { submissionsRepo, assignmentsRepo } = require('../../repos');
 const logger = require('../../utils/logger');
+const { logUserAction, ACTIONS, ENTITIES } = require('../../utils/auditLogger');
 
 const submissionSchema = z.object({
   assignment_id: z.string().uuid(),
@@ -27,6 +28,15 @@ async function createSubmission(req, res, next) {
       completed: false,
     });
 
+    // Log the create action
+    logUserAction(
+      req,
+      ACTIONS.CREATE,
+      ENTITIES.SUBMISSION,
+      submission.id,
+      `Created submission for assignment: ${validated.assignment_id}`
+    );
+
     res.status(201).json(submission);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -40,6 +50,16 @@ async function createSubmission(req, res, next) {
 async function getMenteeSubmissions(req, res, next) {
   try {
     const submissionList = await submissionsRepo.findAllByMenteeId(req.user.id);
+    
+    // Log the read action
+    logUserAction(
+      req,
+      ACTIONS.READ,
+      ENTITIES.SUBMISSION,
+      req.user.id, // Using user ID as entity ID since we're fetching multiple submissions
+      `Retrieved ${submissionList.length} mentee submissions`
+    );
+    
     res.json(submissionList.map(submission => ({
       id: submission.id,
       assignment_id: submission.assignment_id,
@@ -63,6 +83,16 @@ async function getAssignmentSubmissions(req, res, next) {
     }
 
     const submissionList = await submissionsRepo.findAllByAssignmentId(assignmentId);
+    
+    // Log the read action
+    logUserAction(
+      req,
+      ACTIONS.READ,
+      ENTITIES.SUBMISSION,
+      assignmentId, // Using assignment ID since we're fetching submissions for an assignment
+      `Retrieved ${submissionList.length} submissions for assignment: ${assignmentId}`
+    );
+    
     res.json(submissionList.map(submission => ({
       id: submission.id,
       mentee_id: submission.mentee_id,
@@ -92,6 +122,16 @@ async function toggleCompleted(req, res, next) {
     }
 
     const updated = await submissionsRepo.update(id, { completed: validated.completed });
+    
+    // Log the update action
+    logUserAction(
+      req,
+      ACTIONS.UPDATE,
+      ENTITIES.SUBMISSION,
+      id,
+      `Updated submission status to ${validated.completed ? 'completed' : 'incomplete'}`
+    );
+    
     res.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -110,6 +150,16 @@ async function getAllMenteeSubmissions(req, res, next) {
     }
 
     const submissionList = await submissionsRepo.findAllByMentorId(req.user.id);
+    
+    // Log the read action
+    logUserAction(
+      req,
+      ACTIONS.READ,
+      ENTITIES.SUBMISSION,
+      req.user.id, // Using mentor ID since we're fetching all mentee submissions for this mentor
+      `Retrieved ${submissionList.length} submissions from all mentees`
+    );
+    
     res.json(submissionList.map(submission => ({
       id: submission.id,
       assignment_id: submission.assignment_id,

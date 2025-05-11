@@ -54,6 +54,13 @@ Built with Node.js, Express, and PostgreSQL.
 ### 8. Documentation
 - Swagger UI available at **`/api-docs`**
 
+### 9. User Activity Monitoring
+- Tracks all CRUD operations performed by users
+- Analyzes operation frequency to detect suspicious activity
+- Automatically flags users exceeding threshold limits
+- Admin dashboard for viewing and managing monitored users
+- Background job runs hourly to check for unusual patterns
+
 ---
 
 ## API Endpoints
@@ -95,6 +102,12 @@ Built with Node.js, Express, and PostgreSQL.
 ### System
 - `GET /api/v1/health` - Check system health
 - `GET /api-docs` - API documentation (Swagger UI)
+
+### Monitored Users
+- `GET /api/v1/monitored-users` - List all monitored users (ADMIN only)
+- `GET /api/v1/monitored-users/active` - List active monitored users (ADMIN only)
+- `GET /api/v1/monitored-users/:id` - Get monitored user details (ADMIN only)
+- `POST /api/v1/monitored-users/:id/resolve` - Resolve monitored user (ADMIN only)
 
 ---
 
@@ -213,3 +226,39 @@ backend/
    ```bash
    npm start
    ```
+
+## Monitoring System Setup
+
+The user activity monitoring system tracks all CRUD operations and automatically flags users with suspicious activity patterns:
+
+1. **Run migrations**
+   ```bash
+   npm run migrate-logs
+   npm run migrate-monitored-users
+   ```
+
+2. **Ensure user data exists**
+   The monitoring system tracks actions performed by registered users. Before running the simulation:
+   - Create at least one user in the system through the regular signup process, or
+   - The simulation script will automatically create a test user if none exists
+
+3. **Test the monitoring system**
+   ```bash
+   # Simulate suspicious activity (creates logs and runs analysis)
+   npm run simulate-activity
+   
+   # Manually trigger analysis
+   npm run analyze-activity
+   
+   # Check if any users are monitored
+   npm run check-monitored
+   ```
+
+4. **Access monitored users via API**
+   ```
+   GET /api/v1/monitored-users/active
+   ```
+
+The system runs automatically every hour to check for suspicious patterns in user activity. It will flag users who:
+- Perform more than 100 operations within an hour
+- Perform more than 1000 operations within a 24-hour period

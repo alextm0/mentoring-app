@@ -8,6 +8,8 @@ const assignmentsRoutes = require('./assignments/assignments.routes');
 const resourcesRoutes = require('./resources/resources.routes');
 const submissionsRoutes = require('./submissions/submissions.routes');
 const commentsRoutes = require('./comments/comments.routes');
+const logsRoutes = require('./logs/logs.routes');
+const monitoredUsersRoutes = require('./monitored-users/monitored-users.routes');
 
 // API version prefix
 const API_PREFIX = '/api/v1';
@@ -20,6 +22,8 @@ router.use(`${API_PREFIX}/assignments`, assignmentsRoutes);
 router.use(`${API_PREFIX}/resources`, resourcesRoutes);
 router.use(`${API_PREFIX}/submissions`, submissionsRoutes);
 router.use(`${API_PREFIX}/comments`, commentsRoutes);
+router.use(`${API_PREFIX}/logs`, logsRoutes);
+router.use(`${API_PREFIX}/monitored-users`, monitoredUsersRoutes);
 
 // Export the router
 module.exports = router; 

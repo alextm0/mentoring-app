@@ -40,3 +40,14 @@ export type Comment = {
   comment: string;
   created_at: string;
 };
+
+export type MonitoredUser = {
+  id: string;
+  user_id: string;
+  user_email: string;
+  reason: string;
+  operation_count: number;
+  time_period: string;
+  created_at: string;
+  is_active: boolean;
+};
