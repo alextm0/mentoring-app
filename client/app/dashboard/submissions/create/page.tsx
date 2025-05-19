@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +11,8 @@ import { createSubmission } from "@/lib/actions/submissions"
 import { getAssignmentById } from "@/lib/actions/assignments"
 import { Assignment } from "@/types"
 
-export default function CreateSubmissionPage() {
+// Component that uses useSearchParams
+function CreateSubmissionContent() {
   const [assignment, setAssignment] = useState<Assignment | null>(null)
   const [snippet, setSnippet] = useState("")
   const [isLoading, setIsLoading] = useState(true)
@@ -159,4 +160,15 @@ export default function CreateSubmissionPage() {
       </Card>
     </div>
   )
-} 
+}
+
+// Main page component with Suspense boundary
+export default function CreateSubmissionPage() {
+  return (
+    <Suspense fallback={<div className="flex h-[50vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+    </div>}>
+      <CreateSubmissionContent />
+    </Suspense>
+  )
+}

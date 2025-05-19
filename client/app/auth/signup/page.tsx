@@ -4,10 +4,12 @@ import { useActionState } from 'react';
 import Link from 'next/link';
 import { signupAction, type AuthState } from '@/lib/actions/auth';
 import { useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
 const initialState: AuthState = { error: null };
 
-export default function SignupPage() {
+// Create a separate component that uses useSearchParams
+function SignupForm() {
   const [state, formAction] = useActionState(signupAction, initialState);
   const params = useSearchParams();
   const registered = params.get('registered') === 'true';
@@ -78,5 +80,14 @@ export default function SignupPage() {
         </p>
       </form>
     </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function SignupPage() {
+  return (
+    <Suspense fallback={<div className="max-w-md mx-auto mt-10 p-6 bg-white rounded-lg shadow-md">Loading...</div>}>
+      <SignupForm />
+    </Suspense>
   );
 }

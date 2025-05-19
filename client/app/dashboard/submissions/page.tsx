@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card"
@@ -41,7 +41,8 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 
-export default function SubmissionsPage() {
+// Component that uses useSearchParams
+function SubmissionsContent() {
   const { toast } = useToast()
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -600,5 +601,16 @@ export default function SubmissionsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function SubmissionsPage() {
+  return (
+    <Suspense fallback={<div className="flex h-[50vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+    </div>}>
+      <SubmissionsContent />
+    </Suspense>
   )
 }

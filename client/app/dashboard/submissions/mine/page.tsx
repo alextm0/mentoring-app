@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -23,7 +23,8 @@ import {
 import { format } from "date-fns"
 import { Badge } from "@/components/ui/badge"
 
-export default function MySubmissionsPage() {
+// Component that uses useSearchParams
+function MySubmissionsContent() {
   const { toast } = useToast()
   const [submissions, setSubmissions] = useState<Submission[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -221,4 +222,15 @@ export default function MySubmissionsPage() {
       </AlertDialog>
     </div>
   )
-} 
+}
+
+// Main page component with Suspense boundary
+export default function MySubmissionsPage() {
+  return (
+    <Suspense fallback={<div className="flex h-[50vh] items-center justify-center">
+      <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent"></div>
+    </div>}>
+      <MySubmissionsContent />
+    </Suspense>
+  )
+}
